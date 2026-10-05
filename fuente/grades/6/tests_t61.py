@@ -1,0 +1,106 @@
+# -*- coding: utf-8 -*-
+"""Mini-tests del Tema 6.1 (fuente única para el libro y la versión en línea)."""
+from common import *
+
+TESTS = {
+ "listening": {"skill": "listening", "total": 6,
+  "tip": ["Antes de escuchar, **lee todas las preguntas**. Así sabes qué información buscar.",
+          "En un pronóstico, fíjate en el **momento del día** (*in the morning, at noon, later*): cada momento tiene un tiempo distinto."],
+  "review": "Vocabulario (audio 01), *Momentos del día* y la práctica con el audio 04 en velocidad lenta",
+  "parts": [{"intro": "Escucha a Luis con el pronóstico para el Día Deportivo de la escuela. Puedes escuchar **dos veces como máximo**, como en una prueba real.",
+             "audio": "05", "qs": [
+    {"t": "mc", "q": "What will the weather be like in the morning?", "opts": ["sunny and hot", "cloudy and cold", "rainy and windy"], "a": 0,
+     "exp": "*In the morning, it will be sunny and hot.*"},
+    {"t": "short", "q": "The temperature will be ______________ degrees.", "accept": [["31", "thirty-one", "thirty one"]], "show": "**thirty-one** (31)",
+     "exp": "*thirty-one degrees*. Cuidado: no es *thirteen* (13)."},
+    {"t": "mc", "q": "What should students do because it is hot?", "opts": ["bring an umbrella", "drink a lot of water", "wear a jacket"], "a": 1,
+     "exp": "*...so you should drink a lot of water.*"},
+    {"t": "mc", "q": "When will it be windy?", "opts": ["at noon", "at night", "on Saturday"], "a": 0, "exp": "*At noon, it will be windy. Hold your hats!*"},
+    {"t": "tf", "q": "The games will end after the rain.", "a": False,
+     "exp": "*The games will end at two o'clock, **before** the rain.* (before = antes)"},
+    {"t": "tf", "q": "Tomorrow it will be rainy all day.", "a": True, "exp": "*Tomorrow, Saturday, it will be rainy all day.*"},
+  ]}]},
+
+ "reading": {"skill": "reading", "total": 6,
+  "tip": ["Lee primero las preguntas y luego el texto. **Subraya** en el texto la parte donde está cada respuesta.",
+          "En una tabla de pronóstico, busca primero la **fila** (el lugar) y luego la **columna** (el momento o el dato)."],
+  "review": "La lectura *Today's Weather Forecast* y la Gramática A y C",
+  "parts": [{"intro": "Lee el pronóstico de hoy para tres lugares de Panamá y responde.",
+             "reading": {"title": "Weather in Panama Today", "paras": [
+                "**Penonomé:** sunny in the morning, cloudy in the afternoon. 32 degrees. No rain today.",
+                "**Boquete:** cloudy and windy all day. Later, rainy. 18 degrees. It will be cold at night: you should wear a jacket.",
+                "**Colón:** rainy in the morning, with a storm at noon. 27 degrees. You should bring an umbrella and stay away from the beach.",
+                "The forecast for tomorrow: sunny in all three places!"]},
+             "qs": [
+    {"t": "mc", "q": "Which place will be the hottest today?", "opts": ["Penonomé", "Boquete", "Colón"], "a": 0,
+     "exp": "Penonomé: **32** grados, la temperatura más alta."},
+    {"t": "tf", "q": "It will rain in Penonomé today.", "a": False, "exp": "*No rain today.*"},
+    {"t": "short", "q": "In Boquete, you should wear a ______________ at night.", "accept": [["jacket"]], "show": "**jacket**",
+     "exp": "*It will be cold at night: you should wear a jacket.*"},
+    {"t": "mc", "q": "When will there be a storm in Colón?", "opts": ["in the morning", "at noon", "at night"], "a": 1,
+     "exp": "*rainy in the morning, with a storm **at noon**.*"},
+    {"t": "short", "q": "The temperature in Colón will be ______________ degrees.", "accept": [["27", "twenty-seven", "twenty seven"]], "show": "**27**"},
+    {"t": "tf", "q": "Tomorrow it will be sunny in Boquete.", "a": True, "exp": "*The forecast for tomorrow: sunny in all three places!*"},
+  ]}]},
+
+ "writing": {"skill": "writing", "total": 10,
+  "tip": ["Revisa: después de **will** y de **should** el verbo va en forma base (*will be, should bring*), sin *to* y sin *-s*."],
+  "review": "Gramática A y B, y los Errores comunes",
+  "parts": [
+   {"intro": "**Parte A. Cada oración tiene un error. Escríbela correctamente.** (1 punto cada una)", "qs": [
+    {"t": "fix", "q": "Tomorrow it will is sunny.", "accept": ["tomorrow it will be sunny"], "show": "Tomorrow it will **be** sunny.", "exp": "después de will: be"},
+    {"t": "fix", "q": "It will rains in the afternoon.", "accept": ["it will rain in the afternoon"], "show": "It will **rain** in the afternoon.", "exp": "después de will, sin -s"},
+    {"t": "fix", "q": "You should to bring an umbrella.", "accept": ["you should bring an umbrella"], "show": "You should **bring** an umbrella.", "exp": "después de should, sin to"},
+    {"t": "fix", "q": "Today it is sun and hot.", "accept": ["today it is sunny and hot"], "show": "Today it is **sunny** and hot.", "exp": "el adjetivo del tiempo: sunny"},
+    {"t": "fix", "q": "The temperature will be 30 degree.", "accept": ["the temperature will be 30 degrees", "the temperature will be thirty degrees"],
+     "show": "The temperature will be 30 **degrees**.", "exp": "más de uno: degrees"},
+   ]},
+   {"intro": "**Parte B. Escribe el pronóstico de mañana para tu comunidad** con 3 a 5 oraciones. (5 puntos)",
+    "note": ["Mensaje de Diego", "*Hi! I want to play soccer tomorrow. What will the weather be like? What should I bring?*"],
+    "open": {"lines": 5, "min_sent": 3, "max_sent": 5, "check_intro": "**Revisa tu respuesta.** Marca un punto por cada casilla que cumpliste:",
+             "checklist": [
+               {"text": "Usé **will** para el tiempo de mañana.", "auto": r"\bwill be\b|\bwill (rain|be)\b|'ll be\b"},
+               {"text": "Usé al menos 2 palabras del tiempo (*sunny, rainy, cloudy, windy...*).", "auto": r"\b(sunny|rainy|cloudy|windy|stormy|storm|hot|cold)\b.*\b(sunny|rainy|cloudy|windy|stormy|storm|hot|cold)\b"},
+               {"text": "Dije un momento del día (*in the morning, later...*).", "auto": r"\b(morning|afternoon|evening|night|noon|later)\b"},
+               {"text": "Di un consejo con **should**.", "auto": r"\bshould\b"},
+               {"text": "Cada oración empieza con mayúscula y termina con punto.", "auto": "caps"}],
+             "sample": "Hi, Diego! Tomorrow it will be sunny in the morning. Later, it will be cloudy and windy. It will be hot, so you should bring water. You should play in the morning."}},
+  ]},
+
+ "speaking": {"skill": "speaking", "total": 8,
+  "tip": ["Responde siempre con **oración completa**: no solo *Sunny*, sino *Tomorrow it will be sunny.*",
+          "Si no sabes cómo estará el tiempo de verdad, inventa: lo importante es usar **will** y **should**."],
+  "review": "Audio 06: escucha, repite y grábate otra vez",
+  "parts": [{"intro": "Prepara una grabadora (o usa la de esta página) y luego reproduce el audio. Escucharás 5 preguntas; responde cada una en voz alta **durante la pausa**.",
+             "audio": "07",
+             "open": {"record": True, "check_intro": "Después, escucha tu grabación y marca un punto por cada casilla:", "checklist": [
+               {"text": "Pregunta 1: *Today it is...*"},
+               {"text": "Pregunta 2: usé *will be*"},
+               {"text": "Pregunta 3: usé *should*"},
+               {"text": "Pregunta 4: *You should bring an umbrella.*"},
+               {"text": "Pregunta 5: usé *because*"},
+               {"text": "Pronuncié bien la **w** de *weather / will / windy*"},
+               {"text": "Hablé sin leer"}, {"text": "No usé español"}]}}]},
+
+ "mediation": {"skill": "mediation", "total": 8,
+  "tip": ["Para simplificar un pronóstico: quédate con **el tiempo, el momento y el consejo**. Las palabras clave valen más que las oraciones largas."],
+  "review": "La práctica de Mediation: pronóstico con dibujos y palabras clave",
+  "parts": [
+   {"intro": "**Parte A.** Escríbele a Diego (solo habla inglés) este pronóstico, en **2 o 3 oraciones**.",
+    "note": ["Pronóstico de la radio", "Mañana estará soleado en la mañana, pero en la tarde habrá tormenta. Lleven paraguas."],
+    "open": {"lines": 3, "min_sent": 2, "max_sent": 3, "checklist": [
+      {"text": "Dije **mañana** (*tomorrow*).", "auto": r"\btomorrow\b"},
+      {"text": "Dije que estará soleado en la mañana.", "auto": r"\bsunny\b"},
+      {"text": "Dije que habrá tormenta en la tarde.", "auto": r"\bstorm"},
+      {"text": "Di el consejo del paraguas con *should* o *bring*.", "auto": r"\bumbrella\b"},
+      {"text": "Usé oraciones cortas y claras."}],
+     "sample": "Tomorrow it will be sunny in the morning. In the afternoon, there will be a storm. You should bring an umbrella."}},
+   {"intro": "**Parte B.** Simplifica este pronóstico en **1 o 2 oraciones**.",
+    "note": ["Pronóstico", "*Due to a cold front, temperatures will drop to 19 degrees tonight, and residents are advised to wear warm clothes.*"],
+    "open": {"lines": 2, "min_sent": 1, "max_sent": 2, "checklist": [
+      {"text": "Dije que hará **frío** (*cold*).", "auto": r"\bcold\b"},
+      {"text": "Dije **cuándo** (*tonight / at night*).", "auto": r"\btonight\b|\bat night\b"},
+      {"text": "Di el consejo (*wear a jacket / warm clothes*).", "auto": r"\b(jacket|warm clothes|sweater)\b"}],
+     "sample": "Tonight it will be cold, 19 degrees. You should wear a jacket."}},
+  ]},
+}

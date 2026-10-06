@@ -1,0 +1,106 @@
+# -*- coding: utf-8 -*-
+"""Mini-tests del Tema 6.2 · 5.º (fuente única para el libro y la versión en línea)."""
+from common import *
+
+TESTS = {
+ "listening": {"skill": "listening", "total": 6,
+  "tip": ["Antes de escuchar, **lee todas las preguntas**. Así sabes qué información buscar.",
+          "Cuando alguien explica pasos, escucha las palabras **First, Then, Every Monday, Finally**: te dicen en qué paso va."],
+  "review": "Vocabulario (audio 01), la Gramática A y la práctica con el audio 04 en velocidad lenta",
+  "parts": [{"intro": "Escucha a Mrs. Rosa explicar cómo hacen abono en la escuela. Puedes escuchar **dos veces como máximo**.",
+             "audio": "05", "qs": [
+    {"t": "mc", "q": "Where do they collect food scraps?", "opts": ["at home", "from the cafeteria", "from the market"], "a": 1,
+     "exp": "*First, we collect food scraps from the cafeteria every day.*"},
+    {"t": "tf", "q": "They put meat in the compost.", "a": False, "exp": "*We don't use meat or plastic.*"},
+    {"t": "mc", "q": "What do they add to the scraps?", "opts": ["water and plastic", "dry leaves and a little soil", "paper and meat"], "a": 1,
+     "exp": "*Then we put the scraps in the compost bin with dry leaves and a little soil.*"},
+    {"t": "short", "q": "Every ______________, they mix it and water it.", "accept": [["monday", "mondays"]], "show": "**Monday**"},
+    {"t": "short", "q": "After ______________ months, they have compost.", "accept": [["3", "three"]], "show": "**three** (3)"},
+    {"t": "mc", "q": "Last year they could make compost...", "opts": ["all year", "only in the dry season", "only in the rainy season"], "a": 1,
+     "exp": "*Last year we **could** make compost only in the dry season. Now we **can** make it all year!*"},
+  ]}]},
+
+ "reading": {"skill": "reading", "total": 6,
+  "tip": ["Lee primero las preguntas y luego el texto. **Subraya** en el texto la parte donde está cada respuesta.",
+          "En textos con pasos, numera los pasos en el texto (1, 2, 3...) antes de responder."],
+  "review": "La lectura *Composting Is Easy* y la Gramática A y B",
+  "parts": [{"intro": "Lee las instrucciones del huerto escolar y responde.",
+             "reading": {"title": "Our Compost Bin: How to Help", "paras": [
+                "**First,** bring your fruit and vegetable scraps from lunch. Banana peels, mango skins and egg shells are OK.",
+                "**Then** put the scraps in the green bin. There are dry leaves next to the bin. Add one hand of leaves.",
+                "**Next,** close the bin. Do not put plastic, glass, or meat in the bin.",
+                "**Finally,** wash your hands! On Fridays, Grade 5 mixes the compost.",
+                "Last year we could fill one bin. This year there are three bins, so we can make more compost!"]},
+             "qs": [
+    {"t": "mc", "q": "What is the first step?", "opts": ["Wash your hands.", "Bring your fruit and vegetable scraps.", "Close the bin."], "a": 1,
+     "exp": "*First, bring your fruit and vegetable scraps from lunch.*"},
+    {"t": "tf", "q": "You can put egg shells in the bin.", "a": True, "exp": "*Banana peels, mango skins and egg shells are OK.*"},
+    {"t": "short", "q": "After the scraps, add one hand of dry ______________.", "accept": [["leaves", "leaf"]], "show": "**leaves**"},
+    {"t": "tf", "q": "You can put glass in the bin.", "a": False, "exp": "*Do not put plastic, glass, or meat in the bin.*"},
+    {"t": "mc", "q": "Who mixes the compost on Fridays?", "opts": ["the teacher", "Grade 5", "the principal"], "a": 1, "exp": "*On Fridays, Grade 5 mixes the compost.*"},
+    {"t": "short", "q": "How many bins are there this year? ______________", "accept": [["3", "three", "three bins", "there are three bins", "there are three"]],
+     "show": "**three** (3)", "exp": "El año pasado llenaban **un** tinaco (*could fill one bin*); este año hay **tres**."},
+  ]}]},
+
+ "writing": {"skill": "writing", "total": 10,
+  "tip": ["Revisa: los pasos llevan **First, Then, Next, Finally**; *could* es para el pasado; y después de *can / could* el verbo va solo."],
+  "review": "Gramática A, B y C, y los Errores comunes",
+  "parts": [
+   {"intro": "**Parte A. Cada oración tiene un error. Escríbela correctamente.** (1 punto cada una)", "qs": [
+    {"t": "fix", "q": "Last year we can make compost.", "accept": ["last year we could make compost"], "show": "Last year we **could** make compost.", "exp": "last year = pasado → could"},
+    {"t": "fix", "q": "We could to make compost.", "accept": ["we could make compost"], "show": "We could **make** compost.", "exp": "después de could, sin to"},
+    {"t": "fix", "q": "There is two bins in the school yard.", "accept": ["there are two bins in the school yard", "there are 2 bins in the school yard"],
+     "show": "There **are** two bins in the school yard.", "exp": "varias cosas → there are"},
+    {"t": "fix", "q": "First we collect scraps, finally we add leaves, then we use the compost.", "accept": ["first we collect scraps then we add leaves finally we use the compost"],
+     "show": "First we collect scraps, **then** we add leaves, **finally** we use the compost.", "exp": "finally va al final"},
+    {"t": "fix", "q": "We puts food scraps in the bin.", "accept": ["we put food scraps in the bin"], "show": "We **put** food scraps in the bin.", "exp": "con we, sin -s"},
+   ]},
+   {"intro": "**Parte B. Explícale a Diego cómo hacer abono en casa** con 3 a 5 oraciones. (5 puntos)",
+    "note": ["Mensaje de Diego", "*Hi! I want to make compost at home. What do I do first? What can I put in the compost?*"],
+    "open": {"lines": 5, "min_sent": 3, "max_sent": 5, "check_intro": "**Revisa tu respuesta.** Marca un punto por cada casilla que cumpliste:",
+             "checklist": [
+               {"text": "Empecé con **First**.", "auto": r"\bfirst\b"},
+               {"text": "Usé **Then**, **Next** o **Finally**.", "auto": r"\b(then|next|finally)\b"},
+               {"text": "Dije qué se puede poner (*food scraps, leaves*).", "auto": r"\b(food scraps?|leaves|peels?|shells?)\b"},
+               {"text": "Usé **can** o **can't**.", "auto": r"\bcan'?t?\b|\bcannot\b"},
+               {"text": "Cada oración empieza con mayúscula y termina con punto.", "auto": "caps"}],
+             "sample": "Hi, Diego! First, collect food scraps. Then put them in a bin with dry leaves. Next, mix it every week. You can't put plastic in the bin. Finally, use it for your plants."}},
+  ]},
+
+ "speaking": {"skill": "speaking", "total": 8,
+  "tip": ["Responde siempre con **oración completa**: no solo *Leaves*, sino *We can put leaves in the compost.*",
+          "Para explicar pasos, usa **First** y **Then**: así tu respuesta suena ordenada."],
+  "review": "Audio 06: escucha, repite y grábate otra vez",
+  "parts": [{"intro": "Prepara una grabadora (o usa la de esta página) y luego reproduce el audio. Escucharás 5 preguntas; responde cada una en voz alta **durante la pausa**.",
+             "audio": "07",
+             "open": {"record": True, "check_intro": "Después, escucha tu grabación y marca un punto por cada casilla:", "checklist": [
+               {"text": "Pregunta 1: *We can put...*"},
+               {"text": "Pregunta 2: *No, we can't.*"},
+               {"text": "Pregunta 3: usé *First*"},
+               {"text": "Pregunta 4: *We can use it in the garden.*"},
+               {"text": "Pregunta 5: *Yes, there is. / No, there isn't.*"},
+               {"text": "Pronuncié *could* sin la l (/cud/) o *compost* con acento al inicio"},
+               {"text": "Hablé sin leer"}, {"text": "No usé español"}]}}]},
+
+ "mediation": {"skill": "mediation", "total": 8,
+  "tip": ["Para explicar pasos a otra persona, usa **palabras de orden** y oraciones muy cortas. Un dibujo por paso ayuda mucho."],
+  "review": "La práctica de Mediation: pasos con dibujos y palabras clave",
+  "parts": [
+   {"intro": "**Parte A.** Escríbele a Diego (solo habla inglés) lo que dijo tu abuela, en **2 o 3 oraciones**.",
+    "note": ["Lo que dijo tu abuela", "Primero junto las cáscaras de fruta. Luego las pongo con hojas secas. Al final uso el abono para mis plantas."],
+    "open": {"lines": 3, "min_sent": 2, "max_sent": 3, "checklist": [
+      {"text": "Usé **First**.", "auto": r"\bfirst\b"},
+      {"text": "Usé **Then** y **Finally**.", "auto": r"\bthen\b.*\bfinally\b"},
+      {"text": "Mencioné las hojas secas (*dry leaves*).", "auto": r"\bleaves\b"},
+      {"text": "Mencioné las plantas (*plants*).", "auto": r"\bplants?\b"},
+      {"text": "Usé oraciones cortas y claras."}],
+     "sample": "First, my grandma collects fruit peels. Then she puts them with dry leaves. Finally, she uses the compost for her plants."}},
+   {"intro": "**Parte B.** Simplifica este aviso en **1 o 2 oraciones**.",
+    "note": ["Aviso", "*To keep our compost healthy, students are kindly asked not to throw plastic wrappers or leftover meat into the green bin.*"],
+    "open": {"lines": 2, "min_sent": 1, "max_sent": 2, "checklist": [
+      {"text": "Dije **no plástico** (*no plastic*).", "auto": r"\bno plastic\b|\bdon'?t put plastic\b|\bnot plastic\b|\bplastic\b"},
+      {"text": "Dije **no carne** (*no meat*).", "auto": r"\bmeat\b"},
+      {"text": "Mencioné el **green bin**.", "auto": r"\bgreen bin\b|\bgreen\b"}],
+     "sample": "No plastic and no meat in the green bin, please."}},
+  ]},
+}

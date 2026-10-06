@@ -1,0 +1,105 @@
+# -*- coding: utf-8 -*-
+"""Mini-tests del Tema 6.1 · 5.º (fuente única para el libro y la versión en línea)."""
+from common import *
+
+TESTS = {
+ "listening": {"skill": "listening", "total": 6,
+  "tip": ["Antes de escuchar, **lee todas las preguntas**. Así sabes qué información buscar.",
+          "Este audio tiene **colores** y **números**. Anota al margen cada color con lo que va en ese tinaco."],
+  "review": "Vocabulario (audio 01) y la práctica con el audio 04 en velocidad lenta",
+  "parts": [{"intro": "Escucha al director Castillo explicar el nuevo programa de reciclaje. Puedes escuchar **dos veces como máximo**.",
+             "audio": "05", "qs": [
+    {"t": "short", "q": "There are ______________ bins in every classroom.", "accept": [["3", "three"]], "show": "**three** (3)"},
+    {"t": "mc", "q": "The blue bin is for:", "opts": ["paper", "plastic bottles", "food scraps"], "a": 1, "exp": "*The blue bin is for plastic bottles.*"},
+    {"t": "mc", "q": "What goes in the green bin?", "opts": ["food scraps", "paper", "trash"], "a": 0, "exp": "*The green bin is for food scraps.*"},
+    {"t": "tf", "q": "The yellow bin is for paper.", "a": True, "exp": "*The yellow bin is for paper.*"},
+    {"t": "mc", "q": "When do they take the bottles to the recycling center?", "opts": ["every day", "on Mondays", "on Fridays"], "a": 2,
+     "exp": "*...and on Fridays we take them to the recycling center.* Reciclan todos los días, pero las llevan los viernes."},
+    {"t": "short", "q": "Last month, they recycled ______________ bottles.", "accept": [["200", "two hundred"]], "show": "**two hundred** (200)"},
+  ]}]},
+
+ "reading": {"skill": "reading", "total": 6,
+  "tip": ["Lee primero las preguntas y luego el texto. **Subraya** en el texto la parte donde está cada respuesta.",
+          "Si la pregunta dice **How many...?** (¿cuántos?), busca un número en el texto."],
+  "review": "La lectura *Our Recycling Program* y la Gramática B",
+  "parts": [{"intro": "Lee el cartel de la comunidad y responde.",
+             "reading": {"title": "Clean Community Day", "paras": [
+                "**Saturday, 8:00 a.m. · Community Park**",
+                "There is a Clean Community Day this Saturday! We pick up trash in the park and near the river.",
+                "There are three bins at the park entrance: one for plastic, one for paper, and one for glass. There is also a compost area for leaves and food scraps.",
+                "Please bring gloves and a bottle of water. Children can come with an adult.",
+                "Questions? Could you call Mrs. Rosa at 6123-4567, please?"]},
+             "qs": [
+    {"t": "mc", "q": "When is Clean Community Day?", "opts": ["on Friday", "on Saturday", "on Sunday"], "a": 1, "exp": "*Saturday, 8:00 a.m.*"},
+    {"t": "short", "q": "How many bins are there at the park entrance? ______________", "accept": [["3", "three", "three bins", "there are three bins", "there are three"]], "show": "**three** (3)"},
+    {"t": "mc", "q": "What can people put in the compost area?", "opts": ["plastic and glass", "leaves and food scraps", "paper"], "a": 1,
+     "exp": "*There is also a compost area for leaves and food scraps.*"},
+    {"t": "short", "q": "People should bring gloves and a bottle of ______________.", "accept": [["water"]], "show": "**water**"},
+    {"t": "tf", "q": "Children can go alone.", "a": False, "exp": "*Children can come **with an adult**.*"},
+    {"t": "tf", "q": "They pick up trash near the river too.", "a": True, "exp": "*We pick up trash in the park and near the river.*"},
+  ]}]},
+
+ "writing": {"skill": "writing", "total": 10,
+  "tip": ["Revisa: **There is** + una cosa, **There are** + varias. Con **we**, el verbo va sin -s."],
+  "review": "Gramática A, B y C, y los Errores comunes",
+  "parts": [
+   {"intro": "**Parte A. Cada oración tiene un error. Escríbela correctamente.** (1 punto cada una)", "qs": [
+    {"t": "fix", "q": "There is three bins in the classroom.", "accept": ["there are three bins in the classroom", "there are 3 bins in the classroom"],
+     "show": "There **are** three bins in the classroom.", "exp": "varias cosas → there are"},
+    {"t": "fix", "q": "There are a recycling center in my community.", "accept": ["there is a recycling center in my community"],
+     "show": "There **is** a recycling center in my community.", "exp": "una cosa → there is"},
+    {"t": "fix", "q": "We recycles plastic bottles every day.", "accept": ["we recycle plastic bottles every day"],
+     "show": "We **recycle** plastic bottles every day.", "exp": "con we, sin -s"},
+    {"t": "fix", "q": "We can to make compost.", "accept": ["we can make compost"], "show": "We can **make** compost.", "exp": "después de can, sin to"},
+    {"t": "fix", "q": "We doesn't throw trash on the floor.", "accept": ["we dont throw trash on the floor", "we do not throw trash on the floor"],
+     "show": "We **don't** throw trash on the floor.", "exp": "con we: don't"},
+   ]},
+   {"intro": "**Parte B. Escríbele a Diego sobre el reciclaje en tu casa o tu escuela** con 3 a 5 oraciones. (5 puntos)",
+    "note": ["Mensaje de Diego", "*Hi! Is there a recycling bin in your school? What do you recycle? How can we help the environment?*"],
+    "open": {"lines": 5, "min_sent": 3, "max_sent": 5, "check_intro": "**Revisa tu respuesta.** Marca un punto por cada casilla que cumpliste:",
+             "checklist": [
+               {"text": "Usé **There is** o **There are**.", "auto": r"\bthere (is|are|'s)\b"},
+               {"text": "Usé **We recycle** (o *I recycle*).", "auto": r"\b(we|i) recycle\b"},
+               {"text": "Usé **can** para algo que podemos hacer.", "auto": r"\bcan \w+"},
+               {"text": "Usé al menos 2 palabras del vocabulario (*bottles, paper, bin, compost...*).", "auto": r"\b(bottles?|paper|bins?|compost|plastic|trash|environment)\b.*\b(bottles?|paper|bins?|compost|plastic|trash|environment)\b"},
+               {"text": "Cada oración empieza con mayúscula y termina con punto.", "auto": "caps"}],
+             "sample": "Hi, Diego! There is a blue bin in my classroom. We recycle plastic bottles and paper. We can make compost with food scraps."}},
+  ]},
+
+ "speaking": {"skill": "speaking", "total": 8,
+  "tip": ["Responde siempre con **oración completa**: no solo *Bottles*, sino *We recycle plastic bottles.*",
+          "Si no entiendes una pregunta en una prueba oral, puedes decir: *Could you repeat that, please?*"],
+  "review": "Audio 06: escucha, repite y grábate otra vez",
+  "parts": [{"intro": "Prepara una grabadora (o usa la de esta página) y luego reproduce el audio. Escucharás 5 preguntas; responde cada una en voz alta **durante la pausa**.",
+             "audio": "07",
+             "open": {"record": True, "check_intro": "Después, escucha tu grabación y marca un punto por cada casilla:", "checklist": [
+               {"text": "Pregunta 1: *We recycle...*"},
+               {"text": "Pregunta 2: *Yes, there is. / No, there isn't.*"},
+               {"text": "Pregunta 3: *We can make compost.*"},
+               {"text": "Pregunta 4: usé *can*"},
+               {"text": "Pregunta 5: *Could you repeat that, please?*"},
+               {"text": "Pronuncié bien *recycle* (ri-SÁI-kel)"},
+               {"text": "Hablé sin leer"}, {"text": "No usé español"}]}}]},
+
+ "mediation": {"skill": "mediation", "total": 8,
+  "tip": ["Un buen letrero es **corto**: pocas palabras, en orden y fácil de leer de lejos."],
+  "review": "La práctica de Mediation: letreros para los tinacos",
+  "parts": [
+   {"intro": "**Parte A.** Tu maestra dejó esta nota en español. Escríbele a Diego (solo habla inglés) un mensaje de **2 o 3 oraciones**.",
+    "note": ["Nota de la maestra", "Hay un tinaco azul para las botellas de plástico. Reciclamos todos los días. Traigan sus botellas vacías el viernes."],
+    "open": {"lines": 3, "min_sent": 2, "max_sent": 3, "checklist": [
+      {"text": "Usé **There is** para el tinaco azul.", "auto": r"\bthere is\b.*\bblue bin\b|\bthere'?s a blue bin\b"},
+      {"text": "Mencioné las botellas de plástico.", "auto": r"\bplastic bottles?\b|\bbottles?\b"},
+      {"text": "Dije **We recycle every day**.", "auto": r"\bwe recycle\b"},
+      {"text": "Dije **el viernes** (*on Friday*).", "auto": r"\bfriday\b"},
+      {"text": "Usé oraciones cortas y claras."}],
+     "sample": "There is a blue bin for plastic bottles. We recycle every day. Bring your empty bottles on Friday."}},
+   {"intro": "**Parte B.** Escribe un **letrero corto** (1 o 2 oraciones) para el tinaco de los restos de comida.",
+    "note": ["Información", "El tinaco verde es para los restos de comida. Con ellos hacemos abono. No pongan plástico aquí."],
+    "open": {"lines": 2, "min_sent": 1, "max_sent": 2, "checklist": [
+      {"text": "Dije que es para **food scraps**.", "auto": r"\bfood scraps?\b|\bfood\b"},
+      {"text": "Mencioné **compost**.", "auto": r"\bcompost\b"},
+      {"text": "Dije que **no** pongan plástico.", "auto": r"\bno plastic\b|\bdon'?t put plastic\b|\bnot plastic\b|\bno bottles\b"}],
+     "sample": "Food scraps only. We make compost. No plastic, please!"}},
+  ]},
+}

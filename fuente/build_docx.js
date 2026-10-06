@@ -35,8 +35,20 @@ const borders = { top: line, bottom: line, left: line, right: line };
 const boxBorder = { top: line, bottom: line, left: line, right: line };
 const cell = (children, width, extra = {}) => new TableCell({ borders, width: { size: width, type: WidthType.DXA }, margins: { top: 70, bottom: 70, left: 110, right: 110 }, children, ...extra });
 
+// ---------- dibujos (fuente/img/<nombre>.png, 300×300) ----------
+const IMG_CACHE = {};
+function pic(name, px) {
+  if (!IMG_CACHE[name]) IMG_CACHE[name] = fs.readFileSync(path.join(ROOT, "img", name + ".png"));
+  return new ImageRun({ type: "png", data: IMG_CACHE[name], transformation: { width: px, height: px } });
+}
+const C = AlignmentType.CENTER;
+const picPara = (name, px) => new Paragraph({ alignment: C, spacing: { after: 40 }, children: [pic(name, px)] });
+const tbl = (widths, rows) => new Table({ width: { size: widths.reduce((a, c) => a + c, 0), type: WidthType.DXA }, columnWidths: widths, rows });
+const gap = (n = 140) => new Paragraph({ spacing: { after: n }, children: [] });
+const split = (arr, n) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+
 // ---------- bloques ----------
-const BINDS = new Set(["audio","reading","table","box","poem","opts","lines","items","bullets","score"]);
+const BINDS = new Set(["pics","picrows","piclines","picopts","audio","reading","table","box","poem","opts","lines","items","bullets","score"]);
 function render(b, next) {
   const bindNext = !!next && BINDS.has(next.t);
   switch (b.t) {
@@ -69,7 +81,7 @@ function render(b, next) {
     case "h3": return [new Paragraph({ children: runs(b.text, { bold: true, size: 23 }), spacing: { before: 180, after: 80 }, keepNext: true })];
     case "p": return [P(b.text, { align: b.align === "center" ? AlignmentType.CENTER : undefined, keepNext: bindNext })];
     case "items": return b.items.map((t, i) => P(t, { indent: { left: 360, hanging: 360 }, spacing: { after: 80 },
-      keepNext: i === b.items.length - 1 && !!next && ["opts", "lines"].includes(next.t) }));
+      keepNext: i === b.items.length - 1 && !!next && ["opts", "lines", "picopts"].includes(next.t) }));
     case "opts": return b.items.map((t, i) => P(t, { indent: { left: 900 }, spacing: { after: i === b.items.length - 1 ? 140 : 20 }, keepNext: i < b.items.length - 1 }));
     case "bullets": return b.items.map(t => new Paragraph({ numbering: { reference: "bul", level: 0 }, children: runs(t), spacing: { after: 60 } }));
     case "lines": return Array.from({ length: b.n }, () => new Paragraph({ spacing: { before: 260, after: 0 },
@@ -123,6 +135,41 @@ function render(b, next) {
       const head = new TableRow({ tableHeader: true, cantSplit: true, children: b.header.map((h, i) => cell([P(h, { run: { bold: true }, spacing: { after: 0 } })], b.widths[i])) });
       const rows = b.rows.map(r => new TableRow({ cantSplit: true, children: r.map((c, i) => cell([P(c, { spacing: { after: 0 } })], b.widths[i])) }));
       return [new Table({ width: { size: total, type: WidthType.DXA }, columnWidths: b.widths, rows: [head, ...rows] }), new Paragraph({ spacing: { after: 140 }, children: [] })];
+    }
+    case "pics": {
+      const w = Math.floor(CONTENT_W / b.cols), widths = Array(b.cols).fill(w);
+      const rows = split(b.items, b.cols).map(r => new TableRow({ cantSplit: true, children: widths.map((cw, i) => {
+        const it = r[i];
+        if (!it) return cell([P("")], cw);
+        const ch = [picPara(it.img, b.size)];
+        if (it.label) ch.push(P(it.label, { align: C, run: { bold: true, size: 28 }, spacing: { after: 20 } }));
+        if (it.sub) ch.push(P(it.sub, { align: C, run: { size: 19 }, spacing: { after: 0 } }));
+        return cell(ch, cw, { verticalAlign: VerticalAlign.CENTER });
+      }) }));
+      return [tbl(widths, rows), gap()];
+    }
+    case "picrows": {
+      const n = Math.max(...b.rows.map(r => r.imgs.length)), lw = 900, w = Math.floor((CONTENT_W - lw) / n);
+      const widths = [lw, ...Array(n).fill(w)];
+      const rows = b.rows.map(r => new TableRow({ cantSplit: true, children: [
+        cell([P(r.label, { align: C, run: { bold: true, size: 28 }, spacing: { after: 0 } })], lw, { verticalAlign: VerticalAlign.CENTER }),
+        ...Array.from({ length: n }, (_, i) => cell(r.imgs[i] ? [picPara(r.imgs[i], b.size)].concat(b.letters ? [P(`${"abcdef"[i]})`, { align: C, spacing: { after: 0 } })] : []) : [P("")], w, { verticalAlign: VerticalAlign.CENTER }))] }));
+      return [tbl(widths, rows), gap()];
+    }
+    case "piclines": {
+      const nw = b.num ? 700 : 0, iw = b.size > 70 ? 2000 : 1600, tw = CONTENT_W - nw - iw;
+      const widths = (b.num ? [nw] : []).concat([iw, tw]);
+      const rows = b.rows.map((r, i) => new TableRow({ cantSplit: true, children: [
+        ...(b.num ? [cell([P(String(i + 1), { align: C, run: { bold: true, size: 26 }, spacing: { after: 0 } })], nw, { verticalAlign: VerticalAlign.CENTER })] : []),
+        cell([picPara(r.img, b.size)], iw, { verticalAlign: VerticalAlign.CENTER }),
+        cell([P(r.text, { run: { size: 26 }, spacing: { after: 0 } })], tw, { verticalAlign: VerticalAlign.CENTER })] }));
+      return [tbl(widths, rows), gap()];
+    }
+    case "picopts": {
+      const n = b.items.length, w = Math.min(2200, Math.floor((CONTENT_W - 600) / n)), widths = Array(n).fill(w);
+      const row = new TableRow({ cantSplit: true, children: b.items.map(it => cell([picPara(it.img, b.size),
+        P(it.cap, { align: C, run: { size: 22 }, spacing: { after: 0 } })], w, { verticalAlign: VerticalAlign.CENTER })) });
+      return [new Table({ width: { size: w * n, type: WidthType.DXA }, columnWidths: widths, rows: [row], indent: { size: 600, type: WidthType.DXA } }), gap(100)];
     }
     case "transcripts": return b.items.flatMap(it => [
       P(it.label, { run: { bold: true }, spacing: { before: 160, after: 60 }, keepNext: true }),

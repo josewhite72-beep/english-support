@@ -157,6 +157,12 @@ def build_grade(g, book):
         idx.append("</ul>")
     w(os.path.join(G, "index.html"), page(f"English · {name} · {TITLE}", "".join(idx), 1, grade=g, head=SLASH))
     shutil.copytree(os.path.join(ROOT, "audio", g), os.path.join(G, "audio"))
+    # dibujos usados por los mini-tests (K–2)
+    tj = json.dumps(book["tests"], ensure_ascii=False)
+    used = set(re.findall(r'"@([\w-]+)', tj)) | set(re.findall(r'"img": "([\w-]+)"', tj))
+    if used:
+        os.makedirs(os.path.join(G, "img"), exist_ok=True)
+        for n in used: shutil.copy(os.path.join(ROOT, "img", n + ".png"), os.path.join(G, "img"))
     # mini-tests en línea
     meta = {"grade": g, "name": name, "trimester": book["trimester"], "title": TITLE, "zip": f"descargar/english-support-{g}.zip"}
     w(os.path.join(G, "tests-data.js"), "window.META = " + json.dumps(meta, ensure_ascii=False) + ";\nwindow.TESTS = " + json.dumps(book["tests"], ensure_ascii=False) + ";\n")

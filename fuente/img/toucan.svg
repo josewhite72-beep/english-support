@@ -1,0 +1,23 @@
+<svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+ <g fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- body -->
+  <path d="M27,26 C21,28 18,36 19,45 C20,52 24,57 29,59 L33,60 C36,55 37,47 36,39 C35,32 33,27 27,26 Z"/>
+  <!-- head -->
+  <path d="M27,26 C27,20 31,16 36,16 C40,16 42,19 42,22"/>
+  <!-- big beak: upper and lower -->
+  <path d="M38,17 C46,14 56,15 63,20 C58,22 48,24 41,24"/>
+  <path d="M41,24 C48,25 56,24 61,22"/>
+  <line x1="49" y1="16" x2="49" y2="24"/>
+  <!-- eye -->
+  <circle cx="34" cy="21" r="1.6" fill="#000"/>
+  <!-- white chest patch -->
+  <path d="M29,27 C33,30 35,34 35,38"/>
+  <!-- wing -->
+  <path d="M22,38 C24,46 27,52 31,56"/>
+  <!-- tail -->
+  <path d="M29,59 L27,67 M33,60 L33,67"/>
+  <!-- branch and feet -->
+  <line x1="12" y1="58" x2="46" y2="58"/>
+  <path d="M30,56 L30,58 M34,56 L34,58"/>
+ </g>
+</svg>

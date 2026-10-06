@@ -30,6 +30,11 @@
     return list.some(x => x.startsWith("~") ? x.slice(1).split(" ").every(k => a.includes(norm(k))) : a === norm(x));
   }
   const LET = "abcdef";
+  // opciones con dibujo: "@nombre" o "@nombre|texto" → img/nombre.png
+  const isPic = o => typeof o === "string" && o[0] === "@";
+  const picName = o => o.slice(1).split("|")[0];
+  const picCap = o => o.slice(1).split("|")[1] || "";
+  const picHTML = (o, letter) => `<img src="img/${esc(picName(o))}.png" alt="${esc(picCap(o) || letter)}"><span class="cap">${letter})${picCap(o) ? " " + esc(picCap(o)) : ""}</span>`;
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const themeLabel = id => id.replace("-", ".");
 
@@ -148,17 +153,20 @@
         const r = el("div", "reading"); r.innerHTML = `<h3>${esc(part.reading.title)}</h3>` + part.reading.paras.map(p => `<p>${md(p)}</p>`).join("");
         left.append(r);
       }
+      if (part.pics) left.append(el("div", "pstrip", part.pics.map(([img, cap]) => `<figure><img src="img/${esc(img)}.png" alt=""><figcaption>${md(cap)}</figcaption></figure>`).join("")));
       if (part.note) { const n = el("div", "note"); n.innerHTML = `<b>${esc(part.note[0])}</b>` + part.note.slice(1).map(x => `<p>${md(x)}</p>`).join(""); left.append(n); }
       (part.qs || []).forEach(q => {
         qn++; const id = `q${qn}`;
         const box = el("div", "q"); box.dataset.id = id;
         const fb = el("div", "fb");
         if (q.t === "mc" || q.t === "tf") {
-          const opts = q.t === "mc" ? q.opts.map((o, i) => [i, `${LET[i]}) ${o}`]) : [[true, "True"], [false, "False"]];
+          const pics = q.t === "mc" && q.opts.every(isPic);
+          const opts = q.t === "mc" ? q.opts.map((o, i) => [i, pics ? picHTML(o, LET[i]) : esc(`${LET[i]}) ${o}`)]) : [[true, "True"], [false, "False"]];
+          if (q.img) box.append(el("div", "qimg", `<img src="img/${esc(q.img)}.png" alt="">`));
           box.append(el("p", "qt", `<span class="n">${qn}.</span> ${md(q.q)}`));
-          const row = el("div", "opts" + (q.t === "tf" ? " tf" : ""));
+          const row = el("div", "opts" + (q.t === "tf" ? " tf" : "") + (pics ? " pics" : ""));
           opts.forEach(([val, label]) => {
-            const b = el("button", "opt", esc(label)); b.type = "button";
+            const b = el("button", "opt", label); b.type = "button";
             if (saved[id] === val) b.classList.add("sel");
             b.onclick = () => { if (box.classList.contains("done")) return; saved[id] = val; save(); row.querySelectorAll(".opt").forEach(x => x.classList.toggle("sel", x === b)); };
             b.dataset.val = String(val); row.append(b);
@@ -170,6 +178,7 @@
             return ok;
           });
         } else if (q.t === "short") {
+          if (q.img) box.append(el("div", "qimg", `<img src="img/${esc(q.img)}.png" alt="">`));
           const parts = q.q.split(/_{3,}/); const p = el("p", "qt");
           p.innerHTML = `<span class="n">${qn}.</span> `;
           const inputs = [];
@@ -197,7 +206,7 @@
           const v = saved[id], blank = v == null || v === "" || (Array.isArray(v) && !v.some(x => x && String(x).trim()));
           const ok = g();
           box.classList.add("done", ok ? "is-right" : "is-wrong");
-          const ans = q.t === "mc" ? `${LET[q.a]}) ${q.opts[q.a]}` : q.t === "tf" ? (q.a ? "True" : "False") : q.show.replace(/\*\*/g, "");
+          const ans = q.t === "mc" ? (isPic(q.opts[q.a]) ? `${LET[q.a]}) ${picCap(q.opts[q.a]) || q.pic_answer || picName(q.opts[q.a])}` : `${LET[q.a]}) ${q.opts[q.a]}`) : q.t === "tf" ? (q.a ? "True" : "False") : q.show.replace(/\*\*/g, "");
           fb.innerHTML = (ok ? `<b class="ok">✓ ¡Correcto!</b>` : `<b class="no">${blank ? "Sin responder." : "✗"} Respuesta correcta:</b> ${md(q.t === "fix" || q.t === "short" ? q.show : ans)}`) +
             (q.exp ? `<p>${md(q.exp)}</p>` : "");
           box.querySelectorAll("input").forEach(x => x.readOnly = true);

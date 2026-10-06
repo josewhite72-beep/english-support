@@ -240,6 +240,11 @@ def main():
         bp = os.path.join(ROOT, "out", g, "book.json")
         if not os.path.exists(bp): continue
         book = json.load(open(bp, encoding="utf-8"))
+        # solo se publica un grado con TODOS sus audios (normal y lento); TEST=1 lo ignora para pruebas locales
+        miss = [k for k in book["tracks"] for suf in ("", "-slow")
+                if not os.path.exists(os.path.join(ROOT, "audio", g, f"{k}{suf}.mp3"))]
+        if miss and not os.environ.get("TEST"):
+            print(f"grado {g}: OMITIDO, faltan {len(miss)} audios"); continue
         nt, ntr, nte = build_grade(g, book)
         ready[g] = book["trimester"]
         print(f"grado {g}: {nt} temas, {ntr} pistas, {nte} mini-tests")

@@ -124,7 +124,7 @@ def answer_blocks(test):
         out.append(P(f"**Parte B, ejemplo de respuesta:** *{sample}*"))
     elif sk == "mediation":
         samples = [p["open"]["sample"] for p in test["parts"] if p.get("open")]
-        out += [H3("Mediation — Mini-test (ejemplos de respuesta)"), ITEMS(*[f"Parte {'AB'[i]}: *{s}*" for i, s in enumerate(samples)])]
+        out += [H3("Mediation — Mini-test (ejemplos de respuesta)"), ITEMS(*[f"Parte {'AB'[i]}: *{s}*" for i, s in enumerate(samples) if s])]
     else:
         out += [H3(f"{sk.capitalize()} — Mini-test"), ITEMS(*lines)]
     return out

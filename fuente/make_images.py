@@ -20,6 +20,19 @@ MODULE = {
     "home": ("2_5-1_Its_the_Park", "4466d8b2"), "library": ("2_5-1_Its_the_Park", "69f55e43"),
     "market": ("2_5-2_Its_the_Market", "96a6f7a9"), "store": ("2_5-2_Its_the_Market", "9cdef67b"),
     "office": ("2_5-2_Its_the_Market", "607c5e33"), "gym": ("2_5-2_Its_the_Market", "bc596668"),
+    # 1.º grado (vehículos y colores)
+    "car": ("1_5-1_Thats_a_Blue_Bus", "c887bc44"), "bus": ("1_5-1_Thats_a_Blue_Bus", "87c4b7d2"),
+    "taxi": ("1_5-1_Thats_a_Blue_Bus", "7545d73f"), "truck": ("1_5-1_Thats_a_Blue_Bus", "13a374bd"),
+    "train": ("1_5-1_Thats_a_Blue_Bus", "c93785b3"), "bike": ("1_5-1_Thats_a_Blue_Bus", "a4b27eae"),
+    "red": ("1_5-2_Thats_a_Red_Bike", "c47ece1a"), "blue": ("1_5-2_Thats_a_Red_Bike", "4471af74"),
+    "green": ("1_5-2_Thats_a_Red_Bike", "83c9c2b2"), "yellow": ("1_5-2_Thats_a_Red_Bike", "4409c659"),
+    "orange": ("1_5-2_Thats_a_Red_Bike", "c583c020"),
+    # K (animales de la granja)
+    "dog": ("K_5-1_The_Cat_Says_Meow", "5d0fdd1e"), "cat": ("K_5-1_The_Cat_Says_Meow", "f8a5e7a2"),
+    "duck": ("K_5-1_The_Cat_Says_Meow", "985e23d9"), "pig": ("K_5-1_The_Cat_Says_Meow", "ec54246d"),
+    "cow": ("K_5-1_The_Cat_Says_Meow", "f456ccf5"), "bird": ("K_5-1_The_Cat_Says_Meow", "7855422d"),
+    "farm": ("K_5-2_Thats_a_Rooster", "5fff6e57"), "hen": ("K_5-2_Thats_a_Rooster", "bf759af0"),
+    "rooster": ("K_5-2_Thats_a_Rooster", "d7c2b890"),
     "face-happy": ("2_5-1_Its_the_Park", "5231750a"), "face-ok": ("2_5-1_Its_the_Park", "78420360"),
     "face-sad": ("2_5-1_Its_the_Park", "e86a6669"),
     "i-listen": ("2_5-1_Its_the_Park", "e53b03ed"), "i-speak": ("2_5-1_Its_the_Park", "bd743a1d"),
@@ -29,7 +42,8 @@ MODULE = {
 OPENMOJI = {
     "sloth": "1F9A5", "monkey": "1F412", "parrot": "1F99C", "frog": "1F438", "snake": "1F40D",
     "jaguar": "1F406", "leaf": "1F343", "tree": "1F333", "palm": "1F334", "butterfly": "1F98B",
-    "bird": "1F426", "fish": "1F41F",
+    "fish": "1F41F",
+    "step": "1F463", "dance": "1F483", "foot": "1F9B6", "hop": "1F407", "one": "261D", "two": "270C", "clap": "1F44F",
 }
 
 def fit(img):

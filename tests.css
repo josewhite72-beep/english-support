@@ -58,3 +58,14 @@ textarea.wr{width:100%;font:inherit;line-height:1.6;color:var(--ink);background:
 .muted{color:var(--muted)}
 .is-right .qt .n{color:var(--good)}.is-wrong .qt .n{color:var(--bad)}
 .player .play{width:auto;min-height:48px;font-size:16px}.player .bar{margin:0 0 4px}
+
+/* dibujos (K–2) */
+.opts.pics{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:480px}
+.opts.pics .opt{min-width:0}
+.opts.pics .opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;text-align:center}
+.opts.pics .opt img{width:100%;max-width:120px;aspect-ratio:1;background:#fff;border-radius:8px;padding:4px}
+.opts.pics .cap{font-weight:600}
+.qimg img{width:110px;height:110px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;margin:0 0 6px}
+.pstrip{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin:10px 0}
+.pstrip figure{margin:0;text-align:center}.pstrip img{width:100%;max-width:120px;aspect-ratio:1;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px}
+.pstrip figcaption{font-size:14px;margin-top:4px}

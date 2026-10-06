@@ -105,8 +105,9 @@ self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
 """
 
 TITLE = "English Support"
+SLASH = "<script>if(location.protocol.indexOf('http')===0&&!/\\/$/.test(location.pathname))location.replace(location.pathname+'/'+location.search+location.hash)</script>"
 
-def page(title, body, depth, extra_css="", main_cls="", foot=True, grade=None):
+def page(title, body, depth, extra_css="", main_cls="", foot=True, grade=None, head=""):
     up = "../" * depth
     css = f'<link rel="stylesheet" href="{up}style.css">' + (f'<link rel="stylesheet" href="{up}{extra_css}">' if extra_css else "")
     gup = "../" * (depth - 1) if grade else ""
@@ -118,7 +119,7 @@ def page(title, body, depth, extra_css="", main_cls="", foot=True, grade=None):
         ft = f'<p class="foot">{TITLE}{" · " + GRADE_NAMES[grade] if grade else ""} — {links}</p>'
     return f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>
-{css}<link rel="manifest" href="{up}manifest.json"><meta name="theme-color" content="#FAF7F0">
+{head}{css}<link rel="manifest" href="{up}manifest.json"><meta name="theme-color" content="#FAF7F0">
 <script>try{{var t=localStorage.getItem('es-theme');if(t&&t!=='auto')document.documentElement.setAttribute('data-theme',t)}}catch(e){{}}</script></head>
 <body><main class="{main_cls}">{body}{ft}</main><script src="{up}theme.js"></script>
 <script>if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('{up}sw.js')</script></body></html>"""
@@ -154,7 +155,7 @@ def build_grade(g, book):
         for n, tr in th["tracks"]:
             idx.append(f"<li><a href='{theme}/{n}.html'><b>{theme.replace('-', '.')}-{n}</b><span>{html.escape(tr['title'])}</span></a></li>")
         idx.append("</ul>")
-    w(os.path.join(G, "index.html"), page(f"English · {name} · {TITLE}", "".join(idx), 1, grade=g))
+    w(os.path.join(G, "index.html"), page(f"English · {name} · {TITLE}", "".join(idx), 1, grade=g, head=SLASH))
     shutil.copytree(os.path.join(ROOT, "audio", g), os.path.join(G, "audio"))
     # mini-tests en línea
     meta = {"grade": g, "name": name, "trimester": book["trimester"], "title": TITLE, "zip": f"descargar/english-support-{g}.zip"}
@@ -173,7 +174,7 @@ def build_index(ready):
     cards = []
     for g in GRADES:
         if g in ready:
-            cards.append(f'<a class="gcard on" href="{g}/index.html"><b>{GRADE_NAMES[g]}</b><span>{ready[g]}</span></a>')
+            cards.append(f'<a class="gcard on" href="{g}/"><b>{GRADE_NAMES[g]}</b><span>{ready[g]}</span></a>')
         else:
             cards.append(f'<div class="gcard off"><b>{GRADE_NAMES[g]}</b><span>Próximamente</span></div>')
     cards.append('<a class="gcard on" href="https://english7-refuerzo.vercel.app/"><b>7.º grado</b><span>I Trimestre (sitio aparte)</span></a>')

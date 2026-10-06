@@ -1,0 +1,6 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Página no encontrada · English Support</title>
+<link rel="stylesheet" href="/style.css"><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#FAF7F0">
+<script>try{var t=localStorage.getItem('es-theme');if(t&&t!=='auto')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script></head>
+<body><main class=""><p class="kicker">English Support</p><h1>No encontramos esa página</h1><p>Las direcciones llevan el <b>grado</b> al inicio. Por ejemplo, para 6.º grado: <b>/6/5-1/01</b> (audio) o <b>/6/tests</b> (mini-tests).</p><div id="sug"></div><p><a class="cta" href="/index.html">Ir al inicio y elegir el grado</a></p><script>(function(){var G={"6": "6.º grado"},p=location.pathname.replace(/\/+$/,""),m=p.match(/^\/((?:test\/)?\d-\d(?:\/[\w-]+)?)$/);if(!m)return;var h="<p>¿Quisiste decir...?</p><ul class='tracks'>";for(var g in G)h+="<li><a href='/"+g+"/"+m[1]+"'><b>"+G[g]+"</b><span>/"+g+"/"+m[1]+"</span></a></li>";document.getElementById("sug").innerHTML=h+"</ul>"})()</script></main><script src="/theme.js"></script>
+<script>if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('/sw.js')</script></body></html>

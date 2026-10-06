@@ -182,6 +182,17 @@ def build_index(ready):
             f'<div class="grades">{"".join(cards)}</div>')
     w(os.path.join(SITE, "index.html"), page(TITLE, body, 0, foot=False))
 
+def build_404(ready):
+    gl = json.dumps({g: GRADE_NAMES[g] for g in ready}, ensure_ascii=False)
+    body = ('<p class="kicker">English Support</p><h1>No encontramos esa página</h1>'
+            '<p>Las direcciones llevan el <b>grado</b> al inicio. Por ejemplo, para 6.º grado: <b>/6/5-1/01</b> (audio) o <b>/6/tests</b> (mini-tests).</p>'
+            '<div id="sug"></div><p><a class="cta" href="/">Ir al inicio y elegir el grado</a></p>'
+            '<script>(function(){var G=' + gl + ',p=location.pathname.replace(/\\/+$/,""),m=p.match(/^\\/((?:test\\/)?\\d-\\d(?:\\/[\\w-]+)?)$/);'
+            'if(!m)return;var h="<p>¿Quisiste decir...?</p><ul class=\'tracks\'>";'
+            'for(var g in G)h+="<li><a href=\'/"+g+"/"+m[1]+"\'><b>"+G[g]+"</b><span>/"+g+"/"+m[1]+"</span></a></li>";'
+            'document.getElementById("sug").innerHTML=h+"</ul>"})()</script>')
+    w(os.path.join(SITE, "404.html"), page("Página no encontrada · " + TITLE, body.replace('href="/"', 'href="/index.html"'), 0, foot=False).replace('href="style.css"', 'href="/style.css"').replace('src="theme.js"', 'src="/theme.js"').replace("register('sw.js')", "register('/sw.js')").replace('href="manifest.json"', 'href="/manifest.json"'))
+
 def build_zip(g):
     d = os.path.join(SITE, g, "descargar"); os.makedirs(d, exist_ok=True)
     leeme = (f"ENGLISH SUPPORT · {GRADE_NAMES[g].upper()}\r\n\r\n"
@@ -226,6 +237,7 @@ def main():
         ready[g] = book["trimester"]
         print(f"grado {g}: {nt} temas, {ntr} pistas, {nte} mini-tests")
     build_index(ready)
+    build_404(ready)
     for g in ready: build_zip(g)
 
 main()

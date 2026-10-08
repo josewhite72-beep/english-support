@@ -17,7 +17,46 @@
     del(k) { try { localStorage.removeItem(PFX + k); } catch (e) {} },
   };
 
+  // ---------- estudiante (nombre y grupo) ----------
+  // En el laboratorio varias personas usan la misma computadora: "Cambiar de estudiante" borra todo lo guardado.
+  const SEND_URL = window.ES_SEND_URL || "";
+  const student = {
+    get() { try { return JSON.parse(localStorage.getItem("es-student")) || null; } catch (e) { return null; } },
+    set(v) { try { localStorage.setItem("es-student", JSON.stringify(v)); } catch (e) {} },
+    clearAll() {
+      try { Object.keys(localStorage).filter(k => k === "es-student" || /^es(K|\d):/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    },
+  };
+  function studentBar(onChange) {
+    const bar = el("div", "student");
+    const st = student.get();
+    if (st) {
+      bar.innerHTML = `<span>Estudiante: <b>${esc(st.name)}</b> · Grupo <b>${esc(st.group)}</b></span>`;
+      const ch = el("button", "link", "Cambiar de estudiante"); ch.type = "button";
+      ch.onclick = () => {
+        if (!confirm("Se borrarán el nombre, las respuestas y los puntajes guardados en esta computadora. ¿Continuar?")) return;
+        student.clearAll(); onChange();
+      };
+      bar.append(ch);
+    } else {
+      bar.classList.add("ask");
+      bar.innerHTML = `<b>Antes de empezar, escribe tus datos:</b>
+        <div class="sfields"><label>Nombre y apellido<input type="text" class="sname" autocomplete="off" maxlength="60" placeholder="Ej.: Ana Pérez"></label>
+        <label>Grupo<input type="text" class="sgroup" autocomplete="off" maxlength="12" placeholder="Ej.: ${esc(META.grade)}.° A"></label>
+        <button type="button" class="btn">Guardar</button></div>`;
+      const [n, g, b] = [bar.querySelector(".sname"), bar.querySelector(".sgroup"), bar.querySelector("button")];
+      b.onclick = () => {
+        const name = n.value.trim().replace(/\s+/g, " "), group = g.value.trim();
+        if (name.split(" ").length < 2) { alert("Escribe tu nombre y tu apellido."); n.focus(); return; }
+        if (!group) { alert("Escribe tu grupo."); g.focus(); return; }
+        student.set({ name, group }); onChange();
+      };
+    }
+    return bar;
+  }
+
   // ---------- utilidades ----------
+  const plain = s => String(s || "").replace(/\*\*/g, "").replace(/\*/g, "");
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function md(s) {
     return esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
@@ -43,6 +82,7 @@
     document.title = `Mini-tests en línea · ${BRAND}`;
     app.innerHTML = "";
     app.append(el("p", "kicker", `${BRAND} · ${META.trimester}`));
+    app.append(studentBar(renderIndex));
     app.append(el("h1", null, "Mini-tests en línea"));
     app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. Tu progreso se guarda en este dispositivo."));
     Object.keys(DATA).sort().forEach(tid => {
@@ -138,11 +178,13 @@
     app.innerHTML = "";
     const top = el("div", "crumbs", `<a href="#">← Todos los mini-tests</a>`);
     app.append(top);
+    const sbar = studentBar(() => renderTest(tid, sk)); app.append(sbar);
     app.append(el("p", "kicker", `${esc(th.scenario)} · Tema ${themeLabel(tid)}: ${esc(th.title)}`));
     app.append(el("h1", null, `Mini-test de ${SKN[sk]}${sk === "speaking" ? " (examen oral)" : ""}`));
     const tip = el("div", "tip"); tip.innerHTML = `<b>Consejo para la prueba</b>` + t.tip.map(x => `<p>${md(x)}</p>`).join(""); app.append(tip);
 
     const graders = []; // funciones que devuelven puntos
+    let details = [];   // detalle para enviar y para la imagen: {n, q, given, correct, ok} o {open, text, checks, pts}
     let qn = 0;
     t.parts.forEach((part, pi) => {
       const sec = el("section", "part" + (part.reading ? " has-reading" : ""));
@@ -210,6 +252,9 @@
           fb.innerHTML = (ok ? `<b class="ok">✓ ¡Correcto!</b>` : `<b class="no">${blank ? "Sin responder." : "✗"} Respuesta correcta:</b> ${md(q.t === "fix" || q.t === "short" ? q.show : ans)}`) +
             (q.exp ? `<p>${md(q.exp)}</p>` : "");
           box.querySelectorAll("input").forEach(x => x.readOnly = true);
+          const optLabel = i => isPic(q.opts[i]) ? `${LET[i]}) ${picCap(q.opts[i]) || q.pic_answer || picName(q.opts[i])}` : `${LET[i]}) ${q.opts[i]}`;
+          const given = blank ? "" : q.t === "mc" ? optLabel(v) : q.t === "tf" ? (v ? "True" : "False") : Array.isArray(v) ? v.join(" / ") : String(v);
+          details.push({ n: details.filter(d => d.n).length + 1, q: plain(q.q), given, correct: plain(q.t === "fix" || q.t === "short" ? q.show : ans), ok });
           return ok ? 1 : 0;
         });
         right.append(box);
@@ -250,7 +295,13 @@
           ob.append(d);
         }
         right.append(ob);
-        graders.push(() => { list.querySelectorAll("input").forEach(x => x.disabled = true); if (ta) ta.readOnly = true; return [...list.querySelectorAll("input")].filter(x => x.checked).length; });
+        graders.push(() => {
+          list.querySelectorAll("input").forEach(x => x.disabled = true); if (ta) ta.readOnly = true;
+          const checks = op.checklist.map((c, ci) => ({ text: plain(c.text), on: list.querySelectorAll("input")[ci].checked }));
+          const pts = checks.filter(c => c.on).length;
+          details.push({ open: true, intro: plain(part.intro || ""), text: ta ? ta.value.trim() : "", checks, pts });
+          return pts;
+        });
       }
       sec.append(left, right);
       app.append(sec);
@@ -262,8 +313,10 @@
     actions.append(check);
     app.append(result, actions);
     check.onclick = () => {
+      if (!student.get()) { alert("Primero escribe tu nombre y tu grupo (arriba)."); sbar.scrollIntoView({ behavior: "smooth" }); sbar.querySelector("input")?.focus(); return; }
       const unanswered = qn - Object.keys(saved).filter(k => /^q\d+$/.test(k) && (Array.isArray(saved[k]) ? saved[k].some(Boolean) : saved[k] !== "" && saved[k] != null)).length;
       if (unanswered > 0 && !confirm(`Te faltan ${unanswered} pregunta(s) por responder. ¿Revisar de todos modos?`)) return;
+      details = [];
       const pts = graders.reduce((s, g) => s + g(), 0);
       const pct = pts / t.total;
       const best = store.get(`best:${tid}/${sk}`, null);
@@ -275,6 +328,13 @@
         (pct < 0.8 ? `<p><b>Qué repasar en tu libro (Tema ${themeLabel(tid)}):</b> ${md(t.review)}</p>` : "") +
         `<p class="small">Las respuestas abiertas cuentan según las casillas que marcaste. Sé honesto contigo mismo.</p>`;
       actions.innerHTML = "";
+      const rec = { st: student.get(), tid, sk, th, t, pts, nota: nota(pts, t.total), at: new Date(), details };
+      const share = el("div", "share");
+      if (SEND_URL) share.append(sendButton(rec));
+      const img = el("button", "btn ghost", "Guardar imagen del resultado"); img.type = "button";
+      img.onclick = () => saveImage(rec, img);
+      share.append(img);
+      result.append(share);
       const again = el("button", "btn", "Intentar de nuevo"); again.type = "button";
       again.onclick = () => { store.del(key); renderTest(tid, sk); window.scrollTo(0, 0); };
       const back = el("a", "btn ghost", "Todos los mini-tests"); back.href = "#";
@@ -282,6 +342,67 @@
       result.scrollIntoView({ behavior: "smooth", block: "center" });
     };
     window.scrollTo(0, 0);
+  }
+
+  // ---------- nota (escala 1.0 a 5.0) ----------
+  const nota = (pts, total) => Math.round((1 + 4 * pts / total) * 10) / 10;
+  const fmtDate = d => d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric" }) + " " + d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+  const detailText = r => r.details.map(d => d.open
+      ? `[Abierta${d.text ? ": " + d.text : ""}] ${d.checks.map(c => (c.on ? "☑ " : "☐ ") + c.text).join("; ")}`
+      : `${d.n}. ${d.ok ? "✓" : "✗"}${d.ok ? "" : ` (respondió: ${d.given || "—"}; correcta: ${d.correct})`}`).join(" | ");
+
+  // ---------- enviar al maestro (Google Sheets por Apps Script) ----------
+  function sendButton(r) {
+    const wrap = el("span", "sendwrap");
+    const b = el("button", "btn", "Enviar a mi maestro"); b.type = "button";
+    const msg = el("span", "sendmsg");
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Enviando…"; msg.textContent = "";
+      const data = { grado: META.grade, grupo: r.st.group, nombre: r.st.name, tema: themeLabel(r.tid), tema_titulo: r.th.title,
+        destreza: SKN[r.sk], puntaje: r.pts, total: r.t.total, nota: r.nota, fecha: r.at.toISOString(), detalle: detailText(r) };
+      try {
+        const res = await fetch(SEND_URL, { method: "POST", body: JSON.stringify(data) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || j.ok === false) throw new Error(j.error || res.status);
+        b.textContent = "✓ Enviado"; b.classList.add("sent");
+        msg.textContent = "Tu maestro ya recibió tu resultado.";
+      } catch (e) {
+        b.disabled = false; b.textContent = "Enviar a mi maestro";
+        msg.textContent = navigator.onLine === false ? "No hay internet. Conéctate y vuelve a tocar Enviar." : "No se pudo enviar. Vuelve a intentarlo.";
+      }
+    };
+    wrap.append(b, msg);
+    return wrap;
+  }
+
+  // ---------- guardar imagen del resultado corregido ----------
+  function loadH2C() {
+    return window.html2canvas ? Promise.resolve() : new Promise((ok, no) => {
+      const sc = document.createElement("script"); sc.src = "../html2canvas.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc);
+    });
+  }
+  async function saveImage(r, btn) {
+    btn.disabled = true; const label = btn.textContent; btn.textContent = "Preparando…";
+    const card = el("div", "rcard");
+    const rows = r.details.map(d => d.open
+      ? `<div class="rq open"><b>Respuesta abierta (${d.pts} ${d.pts === 1 ? "punto" : "puntos"})</b>${d.text ? `<p class="rtext">${esc(d.text)}</p>` : ""}${d.checks.map(c => `<div>${c.on ? "☑" : "☐"} ${esc(c.text)}</div>`).join("")}</div>`
+      : `<div class="rq ${d.ok ? "ok" : "no"}"><span class="mk">${d.ok ? "✓" : "✗"}</span><div><b>${d.n}.</b> ${esc(d.q || "")}<div>Mi respuesta: <b>${esc(d.given || "—")}</b>${d.ok ? "" : ` · Correcta: <b>${esc(d.correct)}</b>`}</div></div></div>`).join("");
+    card.innerHTML = `<div class="rhead"><div><div class="rk">${esc(META.title)} · ${esc(META.name)} · ${esc(META.trimester)}</div>
+      <h2>Mini-test de ${SKN[r.sk]} · Tema ${themeLabel(r.tid)}</h2><div>${esc(r.th.title)}</div></div>
+      <div class="rscore">${r.pts} / ${r.t.total}<small>Nota ${r.nota.toFixed(1)}</small></div></div>
+      <div class="rwho"><b>${esc(r.st.name)}</b> · Grupo ${esc(r.st.group)} · ${fmtDate(r.at)}</div>${rows}`;
+    document.body.append(card);
+    try {
+      await loadH2C();
+      const canvas = await window.html2canvas(card, { backgroundColor: "#ffffff", scale: 2 });
+      const a = document.createElement("a");
+      const safe = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
+      a.download = `resultado-${safe(r.st.name)}-${META.grade}-${r.tid}-${r.sk}.png`;
+      a.href = canvas.toDataURL("image/png"); document.body.append(a); a.click(); a.remove();
+      btn.textContent = "✓ Imagen guardada";
+    } catch (e) {
+      btn.textContent = label; alert("No se pudo crear la imagen en este navegador.");
+    } finally { card.remove(); btn.disabled = false; }
   }
 
   function route() {

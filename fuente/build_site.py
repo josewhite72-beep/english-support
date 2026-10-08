@@ -166,7 +166,7 @@ def build_grade(g, book):
     # mini-tests en línea
     meta = {"grade": g, "name": name, "trimester": book["trimester"], "title": TITLE, "zip": f"descargar/english-support-{g}.zip"}
     w(os.path.join(G, "tests-data.js"), "window.META = " + json.dumps(meta, ensure_ascii=False) + ";\nwindow.TESTS = " + json.dumps(book["tests"], ensure_ascii=False) + ";\n")
-    body = '<div id="app"><p>Cargando…</p></div><noscript>Activa JavaScript para usar los mini-tests.</noscript><script src="tests-data.js"></script><script src="../tests.js"></script>'
+    body = '<div id="app"><p>Cargando…</p></div><noscript>Activa JavaScript para usar los mini-tests.</noscript><script src="tests-data.js"></script><script src="../config.js"></script><script src="../tests.js"></script>'
     w(os.path.join(G, "tests.html"), page(f"Mini-tests en línea · {name} · {TITLE}", body, 1, "tests.css", "wide", grade=g))
     for theme, th in book["tests"].items():
         for sk in th["tests"]:
@@ -208,7 +208,7 @@ def build_zip(g):
              "3. Funciona sin internet. Tu progreso se guarda en este navegador.\r\n")
     with zipfile.ZipFile(os.path.join(d, f"english-support-{g}.zip"), "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("english-support/LEEME.txt", leeme)
-        for fn in ("style.css", "theme.js", "player.js", "tests.js", "tests.css"):
+        for fn in ("style.css", "theme.js", "player.js", "tests.js", "tests.css", "html2canvas.min.js", "config.js"):
             z.write(os.path.join(SITE, fn), f"english-support/{fn}")
         for base, _, files in os.walk(os.path.join(SITE, g)):
             rel = os.path.relpath(base, SITE)
@@ -227,6 +227,8 @@ def main():
     w(os.path.join(SITE, "sw.js"), SW_JS)
     shutil.copy(os.path.join(ROOT, "web", "tests.js"), SITE)
     shutil.copy(os.path.join(ROOT, "web", "tests.css"), SITE)
+    shutil.copy(os.path.join(ROOT, "web", "html2canvas.min.js"), SITE)  # para "Guardar imagen del resultado"
+    shutil.copy(os.path.join(ROOT, "web", "config.js"), SITE)           # dirección de la hoja de Google (envío al maestro)
     json.dump({"name": TITLE, "short_name": TITLE, "start_url": "/", "display": "standalone",
                "background_color": "#FAF7F0", "theme_color": "#FAF7F0", "lang": "es"},
               open(os.path.join(SITE, "manifest.json"), "w"), ensure_ascii=False)

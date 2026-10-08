@@ -10,48 +10,111 @@
   const SKN = { listening: "Listening", reading: "Reading", writing: "Writing", speaking: "Speaking", mediation: "Mediation" };
   const SKES = { listening: "Escuchar", reading: "Leer", writing: "Escribir", speaking: "Hablar", mediation: "Ayudar a otros a entender" };
   const app = document.getElementById("app");
-  const PFX = "es" + META.grade + ":";
-  const store = {
-    get(k, d) { try { const v = localStorage.getItem(PFX + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {} },
-    del(k) { try { localStorage.removeItem(PFX + k); } catch (e) {} },
-  };
-
-  // ---------- estudiante (nombre y grupo) ----------
-  // En el laboratorio varias personas usan la misma computadora: "Cambiar de estudiante" borra todo lo guardado.
+  // ---------- estudiante: entra con su PIN (la lista está en la hoja privada del maestro) ----------
+  // En el laboratorio varias personas usan la misma computadora: cada estudiante guarda lo suyo aparte
+  // y "Salir" no borra nada. Sin ES_SEND_URL (config.js) el sitio funciona como antes, sin entrar.
   const SEND_URL = window.ES_SEND_URL || "";
+  const SESSION_MS = 3 * 60 * 60 * 1000;   // la sesión se cierra sola tras 3 horas sin uso
+  const hashPin = p => { let h = 5381; for (const c of String(p)) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0; return h.toString(36); };
   const student = {
-    get() { try { return JSON.parse(localStorage.getItem("es-student")) || null; } catch (e) { return null; } },
-    set(v) { try { localStorage.setItem("es-student", JSON.stringify(v)); } catch (e) {} },
-    clearAll() {
-      try { Object.keys(localStorage).filter(k => k === "es-student" || /^es(K|\d):/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    get() {
+      try {
+        const st = JSON.parse(localStorage.getItem("es-student"));
+        if (!st || st.grade !== META.grade) return null;
+        if (Date.now() - (st.at || 0) > SESSION_MS) { localStorage.removeItem("es-student"); return null; }
+        return st;
+      } catch (e) { return null; }
+    },
+    set(v) { try { localStorage.setItem("es-student", JSON.stringify(Object.assign(v, { at: Date.now() }))); } catch (e) {} },
+    touch() { const st = student.get(); if (st) student.set(st); },
+    logout() { try { localStorage.removeItem("es-student"); sessionStorage.removeItem("es-guest"); } catch (e) {} },
+    guest() { try { return sessionStorage.getItem("es-guest") === "1"; } catch (e) { return false; } },
+    setGuest() { try { sessionStorage.setItem("es-guest", "1"); } catch (e) {} },
+  };
+  const PFX = () => { const st = SEND_URL ? student.get() : null; return "es" + META.grade + ":" + (st ? "p" + hashPin(st.pin) + ":" : ""); };
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(PFX() + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(PFX() + k, JSON.stringify(v)); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(PFX() + k); } catch (e) {} },
+  };
+  async function api(action, data) {
+    const res = await fetch(SEND_URL, { method: "POST", body: JSON.stringify(Object.assign({ action }, data)) });
+    return res.json();
+  }
+  // resultados que no se pudieron enviar (sin internet): se reintentan solos
+  const queue = {
+    all() { try { return JSON.parse(localStorage.getItem("es-queue")) || []; } catch (e) { return []; } },
+    save(q) { try { localStorage.setItem("es-queue", JSON.stringify(q)); } catch (e) {} },
+    add(item) { const q = queue.all(); q.push(item); queue.save(q); },
+    async flush() {
+      if (!SEND_URL) return;
+      let q = queue.all(); if (!q.length) return;
+      const left = [];
+      for (const item of q) { try { const j = await api("submit", item); if (!j.ok) left.push(item); } catch (e) { left.push(item); } }
+      queue.save(left);
     },
   };
+  window.addEventListener("online", () => queue.flush());
+
+  let progress = null; // mejor puntaje enviado, por "5.1/Listening" (de la hoja del maestro)
+  async function loadProgress(onDone) {
+    const st = student.get(); if (!st) return;
+    try { const j = await api("progress", { pin: st.pin }); if (j.ok) { progress = j.progreso || {}; onDone(); } } catch (e) {}
+  }
+
   function studentBar(onChange) {
     const bar = el("div", "student");
+    if (!SEND_URL) return bar;
     const st = student.get();
     if (st) {
-      bar.innerHTML = `<span>Estudiante: <b>${esc(st.name)}</b> · Grupo <b>${esc(st.group)}</b></span>`;
-      const ch = el("button", "link", "Cambiar de estudiante"); ch.type = "button";
-      ch.onclick = () => {
-        if (!confirm("Se borrarán el nombre, las respuestas y los puntajes guardados en esta computadora. ¿Continuar?")) return;
-        student.clearAll(); onChange();
-      };
-      bar.append(ch);
-    } else {
-      bar.classList.add("ask");
-      bar.innerHTML = `<b>Antes de empezar, escribe tus datos:</b>
-        <div class="sfields"><label>Nombre y apellido<input type="text" class="sname" autocomplete="off" maxlength="60" placeholder="Ej.: Ana Pérez"></label>
-        <label>Grupo<input type="text" class="sgroup" autocomplete="off" maxlength="12" placeholder="Ej.: ${esc(META.grade)}.° A"></label>
-        <button type="button" class="btn">Guardar</button></div>`;
-      const [n, g, b] = [bar.querySelector(".sname"), bar.querySelector(".sgroup"), bar.querySelector("button")];
-      b.onclick = () => {
-        const name = n.value.trim().replace(/\s+/g, " "), group = g.value.trim();
-        if (name.split(" ").length < 2) { alert("Escribe tu nombre y tu apellido."); n.focus(); return; }
-        if (!group) { alert("Escribe tu grupo."); g.focus(); return; }
-        student.set({ name, group }); onChange();
-      };
+      student.touch();
+      bar.innerHTML = `<span>Hola, <b>${esc(st.name)}</b> · ${esc(META.name)}</span>`;
+      const out = el("button", "link", "Salir"); out.type = "button";
+      out.onclick = () => { student.logout(); progress = null; onChange(); };
+      bar.append(out);
+      return bar;
     }
+    if (student.guest()) {
+      bar.innerHTML = `<span>Estás practicando <b>sin registrarte</b>: tus resultados no se envían al maestro.</span>`;
+      const go = el("button", "link", "Entrar con mi PIN"); go.type = "button";
+      go.onclick = () => { student.logout(); onChange(); };
+      bar.append(go);
+      return bar;
+    }
+    bar.classList.add("ask");
+    bar.innerHTML = `<b>Escribe tu PIN de 4 números</b>
+      <div class="sfields"><input type="password" class="spin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="• • • •" aria-label="PIN">
+      <button type="button" class="btn">Entrar</button></div><p class="smsg"></p>
+      <button type="button" class="link sguest">Practicar sin registrarme</button>`;
+    const inp = bar.querySelector(".spin"), go = bar.querySelector(".btn"), msg = bar.querySelector(".smsg");
+    inp.oninput = () => { inp.value = inp.value.replace(/\D/g, "").slice(0, 4); };
+    inp.onkeydown = e => { if (e.key === "Enter") go.click(); };
+    bar.querySelector(".sguest").onclick = () => { student.setGuest(); onChange(); };
+    go.onclick = async () => {
+      const pin = inp.value;
+      if (pin.length !== 4) { msg.textContent = "El PIN tiene 4 números."; inp.focus(); return; }
+      go.disabled = true; go.textContent = "Buscando…"; msg.textContent = "";
+      try {
+        const j = await api("login", { pin, grado: META.grade });
+        if (j.ok) {
+          const sf = bar.querySelector(".sfields"); sf.innerHTML = "";
+          bar.querySelector("b").textContent = "Confirma que eres tú"; sf.before(msg);
+          msg.innerHTML = `¿Eres <b>${esc(j.nombre)}</b>?`;
+          const yes = el("button", "btn", "Sí, soy yo"), no = el("button", "btn ghost", "No");
+          yes.type = no.type = "button";
+          yes.onclick = () => { student.set({ pin, name: j.nombre, grade: META.grade }); onChange(); queue.flush(); };
+          no.onclick = () => onChange();
+          sf.append(yes, no); yes.focus();
+          return;
+        }
+        if (j.error === "grado") msg.innerHTML = `Ese PIN es de <b>${j.grado_correcto === "K" ? "Kínder" : j.grado_correcto + ".° grado"}</b>. <a href="../${esc(j.grado_correcto)}/tests">Ir a sus mini-tests</a>`;
+        else msg.textContent = "No encontramos ese PIN. Revísalo y vuelve a intentarlo.";
+      } catch (e) {
+        msg.textContent = "No hay conexión con internet. Puedes practicar sin registrarte, pero no se enviará tu resultado.";
+      }
+      go.disabled = false; go.textContent = "Entrar"; inp.value = ""; inp.focus();
+    };
+    setTimeout(() => inp.focus(), 0);
     return bar;
   }
 
@@ -82,9 +145,10 @@
     document.title = `Mini-tests en línea · ${BRAND}`;
     app.innerHTML = "";
     app.append(el("p", "kicker", `${BRAND} · ${META.trimester}`));
-    app.append(studentBar(renderIndex));
+    app.append(studentBar(() => { progress = null; renderIndex(); }));
+    if (SEND_URL && student.get() && progress === null) { progress = {}; loadProgress(renderIndex); }
     app.append(el("h1", null, "Mini-tests en línea"));
-    app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. Tu progreso se guarda en este dispositivo."));
+    app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. " + (SEND_URL ? "Cuando termines, toca <b>Enviar a mi maestro</b>." : "Tu progreso se guarda en este dispositivo.")));
     Object.keys(DATA).sort().forEach(tid => {
       const th = DATA[tid];
       const sec = el("section", "theme");
@@ -93,11 +157,14 @@
       const grid = el("div", "cards");
       SK.forEach(sk => {
         const t = th.tests[sk]; if (!t) return;
-        const best = store.get(`best:${tid}/${sk}`, null);
+        const sent = progress && progress[`${themeLabel(tid)}/${SKN[sk]}`];
+        const local = store.get(`best:${tid}/${sk}`, null);
+        const best = sent ? Math.max(sent.best, local || 0) : local;
         const a = el("a", "card");
         a.href = `#${tid}/${sk}`;
         a.innerHTML = `<span class="sk">${SKN[sk]}</span><span class="skes">${SKES[sk]}</span>` +
-          (best != null ? `<span class="best ${best / t.total >= 0.8 ? "ok" : best / t.total >= 0.5 ? "mid" : "low"}">Mejor: ${best} / ${t.total}</span>` : `<span class="best none">Sin intentar</span>`);
+          (best != null ? `<span class="best ${best / t.total >= 0.8 ? "ok" : best / t.total >= 0.5 ? "mid" : "low"}">Mejor: ${best} / ${t.total}</span>` : `<span class="best none">Sin intentar</span>`) +
+          (sent ? `<span class="sentlbl">✓ Enviado ${sent.veces === 1 ? "1 vez" : sent.veces + " veces"}</span>` : "");
         grid.append(a);
       });
       sec.append(grid);
@@ -313,7 +380,7 @@
     actions.append(check);
     app.append(result, actions);
     check.onclick = () => {
-      if (!student.get()) { alert("Primero escribe tu nombre y tu grupo (arriba)."); sbar.scrollIntoView({ behavior: "smooth" }); sbar.querySelector("input")?.focus(); return; }
+      if (SEND_URL && !student.get() && !student.guest()) { alert("Primero escribe tu PIN (arriba) o elige «Practicar sin registrarme»."); sbar.scrollIntoView({ behavior: "smooth" }); sbar.querySelector("input")?.focus(); return; }
       const unanswered = qn - Object.keys(saved).filter(k => /^q\d+$/.test(k) && (Array.isArray(saved[k]) ? saved[k].some(Boolean) : saved[k] !== "" && saved[k] != null)).length;
       if (unanswered > 0 && !confirm(`Te faltan ${unanswered} pregunta(s) por responder. ¿Revisar de todos modos?`)) return;
       details = [];
@@ -330,7 +397,7 @@
       actions.innerHTML = "";
       const rec = { st: student.get(), tid, sk, th, t, pts, nota: nota(pts, t.total), at: new Date(), details };
       const share = el("div", "share");
-      if (SEND_URL) share.append(sendButton(rec));
+      if (SEND_URL && rec.st) share.append(sendButton(rec));
       const img = el("button", "btn ghost", "Guardar imagen del resultado"); img.type = "button";
       img.onclick = () => saveImage(rec, img);
       share.append(img);
@@ -358,17 +425,22 @@
     const msg = el("span", "sendmsg");
     b.onclick = async () => {
       b.disabled = true; b.textContent = "Enviando…"; msg.textContent = "";
-      const data = { grado: META.grade, grupo: r.st.group, nombre: r.st.name, tema: themeLabel(r.tid), tema_titulo: r.th.title,
-        destreza: SKN[r.sk], puntaje: r.pts, total: r.t.total, nota: r.nota, fecha: r.at.toISOString(), detalle: detailText(r) };
+      const data = { pin: r.st.pin, tema: themeLabel(r.tid), tema_titulo: r.th.title, destreza: SKN[r.sk],
+        puntaje: r.pts, total: r.t.total, detalle: detailText(r) };
       try {
-        const res = await fetch(SEND_URL, { method: "POST", body: JSON.stringify(data) });
-        const j = await res.json().catch(() => ({}));
-        if (!res.ok || j.ok === false) throw new Error(j.error || res.status);
+        const j = await api("submit", data);
+        if (!j.ok) throw new Error(j.error || "error");
         b.textContent = "✓ Enviado"; b.classList.add("sent");
-        msg.textContent = "Tu maestro ya recibió tu resultado.";
+        msg.textContent = `Tu maestro ya recibió tu resultado (intento ${j.intento}).`;
+        if (progress) { const k = `${data.tema}/${data.destreza}`, p = progress[k] || { best: 0, total: data.total, veces: 0 }; p.best = Math.max(p.best, data.puntaje); p.veces++; progress[k] = p; }
       } catch (e) {
-        b.disabled = false; b.textContent = "Enviar a mi maestro";
-        msg.textContent = navigator.onLine === false ? "No hay internet. Conéctate y vuelve a tocar Enviar." : "No se pudo enviar. Vuelve a intentarlo.";
+        if (navigator.onLine === false || e instanceof TypeError) {
+          queue.add(data); b.textContent = "En espera"; b.classList.add("sent");
+          msg.textContent = "No hay internet. Tu resultado se enviará solo cuando vuelva la conexión.";
+        } else {
+          b.disabled = false; b.textContent = "Enviar a mi maestro";
+          msg.textContent = "No se pudo enviar. Vuelve a intentarlo.";
+        }
       }
     };
     wrap.append(b, msg);
@@ -390,14 +462,14 @@
     card.innerHTML = `<div class="rhead"><div><div class="rk">${esc(META.title)} · ${esc(META.name)} · ${esc(META.trimester)}</div>
       <h2>Mini-test de ${SKN[r.sk]} · Tema ${themeLabel(r.tid)}</h2><div>${esc(r.th.title)}</div></div>
       <div class="rscore">${r.pts} / ${r.t.total}<small>Nota ${r.nota.toFixed(1)}</small></div></div>
-      <div class="rwho"><b>${esc(r.st.name)}</b> · Grupo ${esc(r.st.group)} · ${fmtDate(r.at)}</div>${rows}`;
+      <div class="rwho">${r.st ? `<b>${esc(r.st.name)}</b> · ` : ""}${esc(META.name)} · ${fmtDate(r.at)}</div>${rows}`;
     document.body.append(card);
     try {
       await loadH2C();
       const canvas = await window.html2canvas(card, { backgroundColor: "#ffffff", scale: 2 });
       const a = document.createElement("a");
       const safe = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
-      a.download = `resultado-${safe(r.st.name)}-${META.grade}-${r.tid}-${r.sk}.png`;
+      a.download = `resultado-${r.st ? safe(r.st.name) + "-" : ""}${META.grade}-${r.tid}-${r.sk}.png`;
       a.href = canvas.toDataURL("image/png"); document.body.append(a); a.click(); a.remove();
       btn.textContent = "✓ Imagen guardada";
     } catch (e) {
@@ -411,5 +483,6 @@
     if (m) renderTest(m[1], m[2]); else renderIndex();
   }
   window.addEventListener("hashchange", route);
+  queue.flush();
   route();
 })();

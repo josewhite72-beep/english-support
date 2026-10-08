@@ -90,3 +90,7 @@ textarea.wr{width:100%;font:inherit;line-height:1.6;color:var(--ink);background:
 .rcard .rq{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #ccc}
 .rcard .rq.open{display:block}.rcard .rtext{margin:4px 0;padding:6px 10px;border:1px solid #999;white-space:pre-wrap}
 .rcard .mk{font-weight:800;font-size:18px;width:22px}.rcard .rq.no .mk{color:#b00020}.rcard .rq.ok .mk{color:#1b7f3b}
+.student .spin{font:inherit;font-size:24px;letter-spacing:.4em;text-align:center;width:9em;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:50px}
+.student .smsg{margin:8px 0 0;font-size:15px}.student .smsg:empty{display:none}
+.student .sguest{margin-top:6px;font-size:14px}
+.sentlbl{font-size:12px;color:var(--good);font-weight:600}

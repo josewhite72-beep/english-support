@@ -16,7 +16,7 @@
 
 const SHEET_STUDENTS = "Estudiantes";
 const GRADES = ["K", "1", "2", "3", "4", "5", "6"];
-const RESULT_HEADER = ["Fecha", "Estudiante", "Tema", "Título del tema", "Destreza", "Puntaje", "Total", "Nota (1-5)", "Intento", "Detalle", "PIN"];
+const RESULT_HEADER = ["Fecha", "Estudiante", "Tema", "Título del tema", "Destreza", "Puntaje", "Total", "Nota (1-5)", "Intento", "Detalle", "PIN", "ID"];
 
 // ---------------------------------------------------------------- web app ----
 function doPost(e) {
@@ -75,16 +75,20 @@ function submit_(d) {
   lock.waitLock(20000);
   try {
     const sh = gradeSheet_(st.grade);
+    ensureIdColumn_(sh);
     let attempt = 1;
     if (sh.getLastRow() > 1) {
       const rows = sh.getRange(2, 1, sh.getLastRow() - 1, RESULT_HEADER.length).getValues();
+      // el mismo resultado enviado dos veces (se cortó la respuesta y el estudiante volvió a tocar Enviar): no se duplica
+      const dup = d.id ? rows.find(r => String(r[11]) === String(d.id)) : null;
+      if (dup) return { ok: true, intento: dup[8], nombre: st.name, repetido: true };
       attempt += rows.filter(r => pin4_(r[10]) === st.pin && String(r[2]) === String(d.tema) && String(r[4]) === String(d.destreza)).length;
     }
     const total = Number(d.total) || 0, pts = Math.max(0, Math.min(Number(d.puntaje) || 0, total));
     const nota = total ? Math.round((1 + 4 * pts / total) * 10) / 10 : "";
     // el apóstrofo guarda "5.1" y el PIN como texto (si no, la hoja los convierte en números)
     sh.appendRow([new Date(), st.name, "'" + String(d.tema || ""), String(d.tema_titulo || ""), String(d.destreza || ""),
-                  pts, total, nota, attempt, String(d.detalle || "").slice(0, 45000), "'" + st.pin]);
+                  pts, total, nota, attempt, String(d.detalle || "").slice(0, 45000), "'" + st.pin, String(d.id || "")]);
     return { ok: true, intento: attempt, nombre: st.name };
   } finally {
     lock.releaseLock();
@@ -132,9 +136,15 @@ function gradeSheet_(grade) {
     sh.getRange(1, 1, 1, RESULT_HEADER.length).setFontWeight("bold");
     sh.setFrozenRows(1);
     sh.setColumnWidth(10, 420);
-    sh.hideColumns(11);                       // PIN: oculto, solo para el progreso
+    sh.hideColumns(11, 2);                    // PIN e ID: ocultos, solo para el progreso y evitar duplicados
   }
   return sh;
+}
+
+// Las pestañas creadas con la versión anterior tenían 11 columnas: se agrega la columna ID (oculta)
+function ensureIdColumn_(sh) {
+  if (sh.getMaxColumns() < 12) sh.insertColumnsAfter(sh.getMaxColumns(), 12 - sh.getMaxColumns());
+  if (String(sh.getRange(1, 12).getValue()) !== "ID") { sh.getRange(1, 12).setValue("ID"); sh.hideColumns(12); }
 }
 
 // ------------------------------------------------- menú de la hoja (maestro) ----
@@ -177,7 +187,7 @@ function menuCheckList() {
 }
 
 function menuSetup() {
-  GRADES.forEach(gradeSheet_);
+  GRADES.forEach(g => ensureIdColumn_(gradeSheet_(g)));
   SpreadsheetApp.getUi().alert("Listo: pestañas Grado K a Grado 6.");
 }
 

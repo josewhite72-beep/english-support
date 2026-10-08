@@ -81,15 +81,6 @@ textarea.wr{width:100%;font:inherit;line-height:1.6;color:var(--ink);background:
 .share{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
 .sendwrap{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.sendmsg{font-size:14px;color:var(--muted)}
 .btn.sent{background:var(--good)}
-/* tarjeta para la imagen (fuera de la pantalla, siempre en blanco y negro) */
-.rcard{position:fixed;left:-10000px;top:0;width:760px;padding:28px;background:#fff;color:#111;font:15px/1.45 Arial,sans-serif}
-.rcard .rhead{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111;padding-bottom:12px}
-.rcard h2{margin:4px 0;font-size:22px}.rcard .rk{font-size:13px;color:#444}
-.rcard .rscore{font-size:34px;font-weight:800;text-align:right;white-space:nowrap}.rcard .rscore small{display:block;font-size:15px;font-weight:600}
-.rcard .rwho{margin:10px 0 14px;font-size:16px}
-.rcard .rq{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #ccc}
-.rcard .rq.open{display:block}.rcard .rtext{margin:4px 0;padding:6px 10px;border:1px solid #999;white-space:pre-wrap}
-.rcard .mk{font-weight:800;font-size:18px;width:22px}.rcard .rq.no .mk{color:#b00020}.rcard .rq.ok .mk{color:#1b7f3b}
 .student .spin{font:inherit;font-size:24px;letter-spacing:.4em;text-align:center;width:9em;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:50px}
 .student .smsg{margin:8px 0 0;font-size:15px}.student .smsg:empty{display:none}
 .student .sguest{margin-top:6px;font-size:14px}

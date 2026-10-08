@@ -146,7 +146,8 @@
     app.innerHTML = "";
     app.append(el("p", "kicker", `${BRAND} · ${META.trimester}`));
     app.append(studentBar(() => { progress = null; renderIndex(); }));
-    if (SEND_URL && student.get() && progress === null) { progress = {}; loadProgress(renderIndex); }
+    // al llegar el progreso, redibujar solo si el estudiante sigue en la lista (no sacarlo de un mini-test abierto)
+    if (SEND_URL && student.get() && progress === null) { progress = {}; loadProgress(() => { if (!/^#?\/?\d-\d\//.test(location.hash)) renderIndex(); }); }
     app.append(el("h1", null, "Mini-tests en línea"));
     app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. " + (SEND_URL ? "Cuando termines, toca <b>Enviar a mi maestro</b>." : "Tu progreso se guarda en este dispositivo.")));
     Object.keys(DATA).sort().forEach(tid => {
@@ -395,7 +396,8 @@
         (pct < 0.8 ? `<p><b>Qué repasar en tu libro (Tema ${themeLabel(tid)}):</b> ${md(t.review)}</p>` : "") +
         `<p class="small">Las respuestas abiertas cuentan según las casillas que marcaste. Sé honesto contigo mismo.</p>`;
       actions.innerHTML = "";
-      const rec = { st: student.get(), tid, sk, th, t, pts, nota: nota(pts, t.total), at: new Date(), details };
+      const rec = { st: student.get(), tid, sk, th, t, pts, nota: nota(pts, t.total), at: new Date(), details,
+                    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) };
       const share = el("div", "share");
       if (SEND_URL && rec.st) share.append(sendButton(rec));
       const img = el("button", "btn ghost", "Guardar imagen del resultado"); img.type = "button";
@@ -425,10 +427,11 @@
     const msg = el("span", "sendmsg");
     b.onclick = async () => {
       b.disabled = true; b.textContent = "Enviando…"; msg.textContent = "";
-      const data = { pin: r.st.pin, tema: themeLabel(r.tid), tema_titulo: r.th.title, destreza: SKN[r.sk],
+      const data = { id: r.id, pin: r.st.pin, tema: themeLabel(r.tid), tema_titulo: r.th.title, destreza: SKN[r.sk],
         puntaje: r.pts, total: r.t.total, detalle: detailText(r) };
       try {
-        const j = await api("submit", data);
+        let j;
+        try { j = await api("submit", data); } catch (e1) { await new Promise(ok => setTimeout(ok, 1500)); j = await api("submit", data); }
         if (!j.ok) throw new Error(j.error || "error");
         b.textContent = "✓ Enviado"; b.classList.add("sent");
         msg.textContent = `Tu maestro ya recibió tu resultado (intento ${j.intento}).`;
@@ -447,34 +450,69 @@
     return wrap;
   }
 
-  // ---------- guardar imagen del resultado corregido ----------
-  function loadH2C() {
-    return window.html2canvas ? Promise.resolve() : new Promise((ok, no) => {
-      const sc = document.createElement("script"); sc.src = "../html2canvas.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc);
+  // ---------- guardar imagen del resultado corregido (dibujada con canvas, sin librerías) ----------
+  function saveImage(r, btn) {
+    const W = 1000, P = 48, FONT = "Arial, Helvetica, sans-serif";
+    const cv = document.createElement("canvas"), cx = cv.getContext("2d");
+    // 1) armar las líneas (texto, estilo) con ajuste de ancho
+    const wrap = (text, font, maxW) => {
+      cx.font = font; const words = String(text).split(/\s+/); const out = []; let line = "";
+      words.forEach(w => { const t = line ? line + " " + w : w; if (cx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; });
+      if (line) out.push(line); return out.length ? out : [""];
+    };
+    const items = []; // {lines, font, color, x, gap, mark}
+    const add = (text, font, color = "#111", x = P, gap = 6, mark = null) =>
+      items.push({ lines: wrap(text, font, W - x - P), font, color, x, gap, mark, size: parseInt(font.match(/(\d+)px/)[1]) });
+    add(`${META.title} · ${META.name} · ${META.trimester}`, `16px ${FONT}`, "#444", P, 4);
+    add(`Mini-test de ${SKN[r.sk]} · Tema ${themeLabel(r.tid)}`, `bold 28px ${FONT}`, "#111", P, 2);
+    add(r.th.title, `20px ${FONT}`, "#111", P, 14);
+    add(`${r.st ? r.st.name + " · " : ""}${META.name} · ${fmtDate(r.at)}`, `bold 20px ${FONT}`, "#111", P, 18);
+    items.push({ rule: true });
+    r.details.forEach(d => {
+      if (d.open) {
+        add(`Respuesta abierta (${d.pts} ${d.pts === 1 ? "punto" : "puntos"})`, `bold 19px ${FONT}`, "#111", P, 4);
+        if (d.text) add(d.text, `italic 18px ${FONT}`, "#222", P + 20, 6);
+        d.checks.forEach(c => add(`${c.on ? "☑" : "☐"} ${c.text}`, `18px ${FONT}`, "#111", P + 20, 2));
+      } else {
+        add(`${d.n}. ${d.q || ""}`.trim(), `bold 19px ${FONT}`, "#111", P + 40, 2, d.ok ? "ok" : "no");
+        add(`Mi respuesta: ${d.given || "—"}${d.ok ? "" : "   ·   Correcta: " + d.correct}`, `18px ${FONT}`, d.ok ? "#1b5e20" : "#8b0000", P + 40, 6);
+      }
+      items.push({ rule: true, thin: true });
     });
-  }
-  async function saveImage(r, btn) {
-    btn.disabled = true; const label = btn.textContent; btn.textContent = "Preparando…";
-    const card = el("div", "rcard");
-    const rows = r.details.map(d => d.open
-      ? `<div class="rq open"><b>Respuesta abierta (${d.pts} ${d.pts === 1 ? "punto" : "puntos"})</b>${d.text ? `<p class="rtext">${esc(d.text)}</p>` : ""}${d.checks.map(c => `<div>${c.on ? "☑" : "☐"} ${esc(c.text)}</div>`).join("")}</div>`
-      : `<div class="rq ${d.ok ? "ok" : "no"}"><span class="mk">${d.ok ? "✓" : "✗"}</span><div><b>${d.n}.</b> ${esc(d.q || "")}<div>Mi respuesta: <b>${esc(d.given || "—")}</b>${d.ok ? "" : ` · Correcta: <b>${esc(d.correct)}</b>`}</div></div></div>`).join("");
-    card.innerHTML = `<div class="rhead"><div><div class="rk">${esc(META.title)} · ${esc(META.name)} · ${esc(META.trimester)}</div>
-      <h2>Mini-test de ${SKN[r.sk]} · Tema ${themeLabel(r.tid)}</h2><div>${esc(r.th.title)}</div></div>
-      <div class="rscore">${r.pts} / ${r.t.total}<small>Nota ${r.nota.toFixed(1)}</small></div></div>
-      <div class="rwho">${r.st ? `<b>${esc(r.st.name)}</b> · ` : ""}${esc(META.name)} · ${fmtDate(r.at)}</div>${rows}`;
-    document.body.append(card);
+    // 2) medir altura y dibujar
+    const lh = it => Math.round(it.size * 1.35);
+    let H = P + 10;
+    items.forEach(it => { H += it.rule ? 16 : it.lines.length * lh(it) + it.gap; });
+    H += P;
+    const scale = 2; cv.width = W * scale; cv.height = H * scale; cx.scale(scale, scale);
+    cx.fillStyle = "#fff"; cx.fillRect(0, 0, W, H);
+    // puntaje (arriba a la derecha)
+    cx.textAlign = "right"; cx.fillStyle = "#111";
+    cx.font = `bold 46px ${FONT}`; cx.fillText(`${r.pts} / ${r.t.total}`, W - P, P + 40);
+    cx.font = `bold 20px ${FONT}`; cx.fillText(`Nota ${r.nota.toFixed(1)}`, W - P, P + 70);
+    cx.textAlign = "left";
+    let y = P + 10;
+    items.forEach(it => {
+      if (it.rule) { cx.fillStyle = it.thin ? "#ccc" : "#111"; cx.fillRect(P, y + 6, W - 2 * P, it.thin ? 1 : 3); y += 16; return; }
+      cx.font = it.font;
+      it.lines.forEach((ln, i) => {
+        y += lh(it);
+        if (it.mark && i === 0) { cx.fillStyle = it.mark === "ok" ? "#1b7f3b" : "#b00020"; cx.font = `bold 24px ${FONT}`; cx.fillText(it.mark === "ok" ? "✓" : "✗", P + 4, y); cx.font = it.font; }
+        cx.fillStyle = it.color; cx.fillText(ln, it.x, y);
+      });
+      y += it.gap;
+    });
+    // 3) descargar
+    const safe = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
+    const name = `resultado-${r.st ? safe(r.st.name) + "-" : ""}${META.grade}-${r.tid}-${r.sk}.png`;
     try {
-      await loadH2C();
-      const canvas = await window.html2canvas(card, { backgroundColor: "#ffffff", scale: 2 });
-      const a = document.createElement("a");
-      const safe = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
-      a.download = `resultado-${r.st ? safe(r.st.name) + "-" : ""}${META.grade}-${r.tid}-${r.sk}.png`;
-      a.href = canvas.toDataURL("image/png"); document.body.append(a); a.click(); a.remove();
-      btn.textContent = "✓ Imagen guardada";
+      const url = cv.toDataURL("image/png");
+      const a = document.createElement("a"); a.download = name; a.href = url;
+      document.body.append(a); a.click(); a.remove();
+      btn.textContent = "✓ Imagen guardada (en Descargas)";
     } catch (e) {
-      btn.textContent = label; alert("No se pudo crear la imagen en este navegador.");
-    } finally { card.remove(); btn.disabled = false; }
+      alert("No se pudo guardar la imagen en este navegador.");
+    }
   }
 
   function route() {

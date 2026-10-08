@@ -10,14 +10,116 @@
   const SKN = { listening: "Listening", reading: "Reading", writing: "Writing", speaking: "Speaking", mediation: "Mediation" };
   const SKES = { listening: "Escuchar", reading: "Leer", writing: "Escribir", speaking: "Hablar", mediation: "Ayudar a otros a entender" };
   const app = document.getElementById("app");
-  const PFX = "es" + META.grade + ":";
-  const store = {
-    get(k, d) { try { const v = localStorage.getItem(PFX + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch (e) {} },
-    del(k) { try { localStorage.removeItem(PFX + k); } catch (e) {} },
+  // ---------- estudiante: entra con su PIN (la lista está en la hoja privada del maestro) ----------
+  // En el laboratorio varias personas usan la misma computadora: cada estudiante guarda lo suyo aparte
+  // y "Salir" no borra nada. Sin ES_SEND_URL (config.js) el sitio funciona como antes, sin entrar.
+  const SEND_URL = window.ES_SEND_URL || "";
+  const SESSION_MS = 3 * 60 * 60 * 1000;   // la sesión se cierra sola tras 3 horas sin uso
+  const hashPin = p => { let h = 5381; for (const c of String(p)) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0; return h.toString(36); };
+  const student = {
+    get() {
+      try {
+        const st = JSON.parse(localStorage.getItem("es-student"));
+        if (!st || st.grade !== META.grade) return null;
+        if (Date.now() - (st.at || 0) > SESSION_MS) { localStorage.removeItem("es-student"); return null; }
+        return st;
+      } catch (e) { return null; }
+    },
+    set(v) { try { localStorage.setItem("es-student", JSON.stringify(Object.assign(v, { at: Date.now() }))); } catch (e) {} },
+    touch() { const st = student.get(); if (st) student.set(st); },
+    logout() { try { localStorage.removeItem("es-student"); sessionStorage.removeItem("es-guest"); } catch (e) {} },
+    guest() { try { return sessionStorage.getItem("es-guest") === "1"; } catch (e) { return false; } },
+    setGuest() { try { sessionStorage.setItem("es-guest", "1"); } catch (e) {} },
   };
+  const PFX = () => { const st = SEND_URL ? student.get() : null; return "es" + META.grade + ":" + (st ? "p" + hashPin(st.pin) + ":" : ""); };
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(PFX() + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(PFX() + k, JSON.stringify(v)); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(PFX() + k); } catch (e) {} },
+  };
+  async function api(action, data) {
+    const res = await fetch(SEND_URL, { method: "POST", body: JSON.stringify(Object.assign({ action }, data)) });
+    return res.json();
+  }
+  // resultados que no se pudieron enviar (sin internet): se reintentan solos
+  const queue = {
+    all() { try { return JSON.parse(localStorage.getItem("es-queue")) || []; } catch (e) { return []; } },
+    save(q) { try { localStorage.setItem("es-queue", JSON.stringify(q)); } catch (e) {} },
+    add(item) { const q = queue.all(); q.push(item); queue.save(q); },
+    async flush() {
+      if (!SEND_URL) return;
+      let q = queue.all(); if (!q.length) return;
+      const left = [];
+      for (const item of q) { try { const j = await api("submit", item); if (!j.ok) left.push(item); } catch (e) { left.push(item); } }
+      queue.save(left);
+    },
+  };
+  window.addEventListener("online", () => queue.flush());
+
+  let progress = null; // mejor puntaje enviado, por "5.1/Listening" (de la hoja del maestro)
+  async function loadProgress(onDone) {
+    const st = student.get(); if (!st) return;
+    try { const j = await api("progress", { pin: st.pin }); if (j.ok) { progress = j.progreso || {}; onDone(); } } catch (e) {}
+  }
+
+  function studentBar(onChange) {
+    const bar = el("div", "student");
+    if (!SEND_URL) return bar;
+    const st = student.get();
+    if (st) {
+      student.touch();
+      bar.innerHTML = `<span>Hola, <b>${esc(st.name)}</b> · ${esc(META.name)}</span>`;
+      const out = el("button", "link", "Salir"); out.type = "button";
+      out.onclick = () => { student.logout(); progress = null; onChange(); };
+      bar.append(out);
+      return bar;
+    }
+    if (student.guest()) {
+      bar.innerHTML = `<span>Estás practicando <b>sin registrarte</b>: tus resultados no se envían al maestro.</span>`;
+      const go = el("button", "link", "Entrar con mi PIN"); go.type = "button";
+      go.onclick = () => { student.logout(); onChange(); };
+      bar.append(go);
+      return bar;
+    }
+    bar.classList.add("ask");
+    bar.innerHTML = `<b>Escribe tu PIN de 4 números</b>
+      <div class="sfields"><input type="password" class="spin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="• • • •" aria-label="PIN">
+      <button type="button" class="btn">Entrar</button></div><p class="smsg"></p>
+      <button type="button" class="link sguest">Practicar sin registrarme</button>`;
+    const inp = bar.querySelector(".spin"), go = bar.querySelector(".btn"), msg = bar.querySelector(".smsg");
+    inp.oninput = () => { inp.value = inp.value.replace(/\D/g, "").slice(0, 4); };
+    inp.onkeydown = e => { if (e.key === "Enter") go.click(); };
+    bar.querySelector(".sguest").onclick = () => { student.setGuest(); onChange(); };
+    go.onclick = async () => {
+      const pin = inp.value;
+      if (pin.length !== 4) { msg.textContent = "El PIN tiene 4 números."; inp.focus(); return; }
+      go.disabled = true; go.textContent = "Buscando…"; msg.textContent = "";
+      try {
+        const j = await api("login", { pin, grado: META.grade });
+        if (j.ok) {
+          const sf = bar.querySelector(".sfields"); sf.innerHTML = "";
+          bar.querySelector("b").textContent = "Confirma que eres tú"; sf.before(msg);
+          msg.innerHTML = `¿Eres <b>${esc(j.nombre)}</b>?`;
+          const yes = el("button", "btn", "Sí, soy yo"), no = el("button", "btn ghost", "No");
+          yes.type = no.type = "button";
+          yes.onclick = () => { student.set({ pin, name: j.nombre, grade: META.grade }); onChange(); queue.flush(); };
+          no.onclick = () => onChange();
+          sf.append(yes, no); yes.focus();
+          return;
+        }
+        if (j.error === "grado") msg.innerHTML = `Ese PIN es de <b>${j.grado_correcto === "K" ? "Kínder" : j.grado_correcto + ".° grado"}</b>. <a href="../${esc(j.grado_correcto)}/tests">Ir a sus mini-tests</a>`;
+        else msg.textContent = "No encontramos ese PIN. Revísalo y vuelve a intentarlo.";
+      } catch (e) {
+        msg.textContent = "No hay conexión con internet. Puedes practicar sin registrarte, pero no se enviará tu resultado.";
+      }
+      go.disabled = false; go.textContent = "Entrar"; inp.value = ""; inp.focus();
+    };
+    setTimeout(() => inp.focus(), 0);
+    return bar;
+  }
 
   // ---------- utilidades ----------
+  const plain = s => String(s || "").replace(/\*\*/g, "").replace(/\*/g, "");
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function md(s) {
     return esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
@@ -43,8 +145,10 @@
     document.title = `Mini-tests en línea · ${BRAND}`;
     app.innerHTML = "";
     app.append(el("p", "kicker", `${BRAND} · ${META.trimester}`));
+    app.append(studentBar(() => { progress = null; renderIndex(); }));
+    if (SEND_URL && student.get() && progress === null) { progress = {}; loadProgress(renderIndex); }
     app.append(el("h1", null, "Mini-tests en línea"));
-    app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. Tu progreso se guarda en este dispositivo."));
+    app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. " + (SEND_URL ? "Cuando termines, toca <b>Enviar a mi maestro</b>." : "Tu progreso se guarda en este dispositivo.")));
     Object.keys(DATA).sort().forEach(tid => {
       const th = DATA[tid];
       const sec = el("section", "theme");
@@ -53,11 +157,14 @@
       const grid = el("div", "cards");
       SK.forEach(sk => {
         const t = th.tests[sk]; if (!t) return;
-        const best = store.get(`best:${tid}/${sk}`, null);
+        const sent = progress && progress[`${themeLabel(tid)}/${SKN[sk]}`];
+        const local = store.get(`best:${tid}/${sk}`, null);
+        const best = sent ? Math.max(sent.best, local || 0) : local;
         const a = el("a", "card");
         a.href = `#${tid}/${sk}`;
         a.innerHTML = `<span class="sk">${SKN[sk]}</span><span class="skes">${SKES[sk]}</span>` +
-          (best != null ? `<span class="best ${best / t.total >= 0.8 ? "ok" : best / t.total >= 0.5 ? "mid" : "low"}">Mejor: ${best} / ${t.total}</span>` : `<span class="best none">Sin intentar</span>`);
+          (best != null ? `<span class="best ${best / t.total >= 0.8 ? "ok" : best / t.total >= 0.5 ? "mid" : "low"}">Mejor: ${best} / ${t.total}</span>` : `<span class="best none">Sin intentar</span>`) +
+          (sent ? `<span class="sentlbl">✓ Enviado ${sent.veces === 1 ? "1 vez" : sent.veces + " veces"}</span>` : "");
         grid.append(a);
       });
       sec.append(grid);
@@ -138,11 +245,13 @@
     app.innerHTML = "";
     const top = el("div", "crumbs", `<a href="#">← Todos los mini-tests</a>`);
     app.append(top);
+    const sbar = studentBar(() => renderTest(tid, sk)); app.append(sbar);
     app.append(el("p", "kicker", `${esc(th.scenario)} · Tema ${themeLabel(tid)}: ${esc(th.title)}`));
     app.append(el("h1", null, `Mini-test de ${SKN[sk]}${sk === "speaking" ? " (examen oral)" : ""}`));
     const tip = el("div", "tip"); tip.innerHTML = `<b>Consejo para la prueba</b>` + t.tip.map(x => `<p>${md(x)}</p>`).join(""); app.append(tip);
 
     const graders = []; // funciones que devuelven puntos
+    let details = [];   // detalle para enviar y para la imagen: {n, q, given, correct, ok} o {open, text, checks, pts}
     let qn = 0;
     t.parts.forEach((part, pi) => {
       const sec = el("section", "part" + (part.reading ? " has-reading" : ""));
@@ -210,6 +319,9 @@
           fb.innerHTML = (ok ? `<b class="ok">✓ ¡Correcto!</b>` : `<b class="no">${blank ? "Sin responder." : "✗"} Respuesta correcta:</b> ${md(q.t === "fix" || q.t === "short" ? q.show : ans)}`) +
             (q.exp ? `<p>${md(q.exp)}</p>` : "");
           box.querySelectorAll("input").forEach(x => x.readOnly = true);
+          const optLabel = i => isPic(q.opts[i]) ? `${LET[i]}) ${picCap(q.opts[i]) || q.pic_answer || picName(q.opts[i])}` : `${LET[i]}) ${q.opts[i]}`;
+          const given = blank ? "" : q.t === "mc" ? optLabel(v) : q.t === "tf" ? (v ? "True" : "False") : Array.isArray(v) ? v.join(" / ") : String(v);
+          details.push({ n: details.filter(d => d.n).length + 1, q: plain(q.q), given, correct: plain(q.t === "fix" || q.t === "short" ? q.show : ans), ok });
           return ok ? 1 : 0;
         });
         right.append(box);
@@ -250,7 +362,13 @@
           ob.append(d);
         }
         right.append(ob);
-        graders.push(() => { list.querySelectorAll("input").forEach(x => x.disabled = true); if (ta) ta.readOnly = true; return [...list.querySelectorAll("input")].filter(x => x.checked).length; });
+        graders.push(() => {
+          list.querySelectorAll("input").forEach(x => x.disabled = true); if (ta) ta.readOnly = true;
+          const checks = op.checklist.map((c, ci) => ({ text: plain(c.text), on: list.querySelectorAll("input")[ci].checked }));
+          const pts = checks.filter(c => c.on).length;
+          details.push({ open: true, intro: plain(part.intro || ""), text: ta ? ta.value.trim() : "", checks, pts });
+          return pts;
+        });
       }
       sec.append(left, right);
       app.append(sec);
@@ -262,8 +380,10 @@
     actions.append(check);
     app.append(result, actions);
     check.onclick = () => {
+      if (SEND_URL && !student.get() && !student.guest()) { alert("Primero escribe tu PIN (arriba) o elige «Practicar sin registrarme»."); sbar.scrollIntoView({ behavior: "smooth" }); sbar.querySelector("input")?.focus(); return; }
       const unanswered = qn - Object.keys(saved).filter(k => /^q\d+$/.test(k) && (Array.isArray(saved[k]) ? saved[k].some(Boolean) : saved[k] !== "" && saved[k] != null)).length;
       if (unanswered > 0 && !confirm(`Te faltan ${unanswered} pregunta(s) por responder. ¿Revisar de todos modos?`)) return;
+      details = [];
       const pts = graders.reduce((s, g) => s + g(), 0);
       const pct = pts / t.total;
       const best = store.get(`best:${tid}/${sk}`, null);
@@ -275,6 +395,13 @@
         (pct < 0.8 ? `<p><b>Qué repasar en tu libro (Tema ${themeLabel(tid)}):</b> ${md(t.review)}</p>` : "") +
         `<p class="small">Las respuestas abiertas cuentan según las casillas que marcaste. Sé honesto contigo mismo.</p>`;
       actions.innerHTML = "";
+      const rec = { st: student.get(), tid, sk, th, t, pts, nota: nota(pts, t.total), at: new Date(), details };
+      const share = el("div", "share");
+      if (SEND_URL && rec.st) share.append(sendButton(rec));
+      const img = el("button", "btn ghost", "Guardar imagen del resultado"); img.type = "button";
+      img.onclick = () => saveImage(rec, img);
+      share.append(img);
+      result.append(share);
       const again = el("button", "btn", "Intentar de nuevo"); again.type = "button";
       again.onclick = () => { store.del(key); renderTest(tid, sk); window.scrollTo(0, 0); };
       const back = el("a", "btn ghost", "Todos los mini-tests"); back.href = "#";
@@ -284,11 +411,78 @@
     window.scrollTo(0, 0);
   }
 
+  // ---------- nota (escala 1.0 a 5.0) ----------
+  const nota = (pts, total) => Math.round((1 + 4 * pts / total) * 10) / 10;
+  const fmtDate = d => d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric" }) + " " + d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+  const detailText = r => r.details.map(d => d.open
+      ? `[Abierta${d.text ? ": " + d.text : ""}] ${d.checks.map(c => (c.on ? "☑ " : "☐ ") + c.text).join("; ")}`
+      : `${d.n}. ${d.ok ? "✓" : "✗"}${d.ok ? "" : ` (respondió: ${d.given || "—"}; correcta: ${d.correct})`}`).join(" | ");
+
+  // ---------- enviar al maestro (Google Sheets por Apps Script) ----------
+  function sendButton(r) {
+    const wrap = el("span", "sendwrap");
+    const b = el("button", "btn", "Enviar a mi maestro"); b.type = "button";
+    const msg = el("span", "sendmsg");
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "Enviando…"; msg.textContent = "";
+      const data = { pin: r.st.pin, tema: themeLabel(r.tid), tema_titulo: r.th.title, destreza: SKN[r.sk],
+        puntaje: r.pts, total: r.t.total, detalle: detailText(r) };
+      try {
+        const j = await api("submit", data);
+        if (!j.ok) throw new Error(j.error || "error");
+        b.textContent = "✓ Enviado"; b.classList.add("sent");
+        msg.textContent = `Tu maestro ya recibió tu resultado (intento ${j.intento}).`;
+        if (progress) { const k = `${data.tema}/${data.destreza}`, p = progress[k] || { best: 0, total: data.total, veces: 0 }; p.best = Math.max(p.best, data.puntaje); p.veces++; progress[k] = p; }
+      } catch (e) {
+        if (navigator.onLine === false || e instanceof TypeError) {
+          queue.add(data); b.textContent = "En espera"; b.classList.add("sent");
+          msg.textContent = "No hay internet. Tu resultado se enviará solo cuando vuelva la conexión.";
+        } else {
+          b.disabled = false; b.textContent = "Enviar a mi maestro";
+          msg.textContent = "No se pudo enviar. Vuelve a intentarlo.";
+        }
+      }
+    };
+    wrap.append(b, msg);
+    return wrap;
+  }
+
+  // ---------- guardar imagen del resultado corregido ----------
+  function loadH2C() {
+    return window.html2canvas ? Promise.resolve() : new Promise((ok, no) => {
+      const sc = document.createElement("script"); sc.src = "../html2canvas.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc);
+    });
+  }
+  async function saveImage(r, btn) {
+    btn.disabled = true; const label = btn.textContent; btn.textContent = "Preparando…";
+    const card = el("div", "rcard");
+    const rows = r.details.map(d => d.open
+      ? `<div class="rq open"><b>Respuesta abierta (${d.pts} ${d.pts === 1 ? "punto" : "puntos"})</b>${d.text ? `<p class="rtext">${esc(d.text)}</p>` : ""}${d.checks.map(c => `<div>${c.on ? "☑" : "☐"} ${esc(c.text)}</div>`).join("")}</div>`
+      : `<div class="rq ${d.ok ? "ok" : "no"}"><span class="mk">${d.ok ? "✓" : "✗"}</span><div><b>${d.n}.</b> ${esc(d.q || "")}<div>Mi respuesta: <b>${esc(d.given || "—")}</b>${d.ok ? "" : ` · Correcta: <b>${esc(d.correct)}</b>`}</div></div></div>`).join("");
+    card.innerHTML = `<div class="rhead"><div><div class="rk">${esc(META.title)} · ${esc(META.name)} · ${esc(META.trimester)}</div>
+      <h2>Mini-test de ${SKN[r.sk]} · Tema ${themeLabel(r.tid)}</h2><div>${esc(r.th.title)}</div></div>
+      <div class="rscore">${r.pts} / ${r.t.total}<small>Nota ${r.nota.toFixed(1)}</small></div></div>
+      <div class="rwho">${r.st ? `<b>${esc(r.st.name)}</b> · ` : ""}${esc(META.name)} · ${fmtDate(r.at)}</div>${rows}`;
+    document.body.append(card);
+    try {
+      await loadH2C();
+      const canvas = await window.html2canvas(card, { backgroundColor: "#ffffff", scale: 2 });
+      const a = document.createElement("a");
+      const safe = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "");
+      a.download = `resultado-${r.st ? safe(r.st.name) + "-" : ""}${META.grade}-${r.tid}-${r.sk}.png`;
+      a.href = canvas.toDataURL("image/png"); document.body.append(a); a.click(); a.remove();
+      btn.textContent = "✓ Imagen guardada";
+    } catch (e) {
+      btn.textContent = label; alert("No se pudo crear la imagen en este navegador.");
+    } finally { card.remove(); btn.disabled = false; }
+  }
+
   function route() {
     const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
     const m = h.match(/^(\d-\d)\/(\w+)$/);
     if (m) renderTest(m[1], m[2]); else renderIndex();
   }
   window.addEventListener("hashchange", route);
+  queue.flush();
   route();
 })();

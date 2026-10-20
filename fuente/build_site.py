@@ -184,7 +184,7 @@ def build_index(ready):
         else:
             cards.append(f'<div class="gcard off"><b>{GRADE_NAMES[g]}</b><span>Próximamente</span></div>')
     cards.append('<a class="gcard on" href="https://english7-refuerzo.vercel.app/"><b>7.º grado</b><span>I Trimestre (sitio aparte)</span></a>')
-    body = (f'<p class="kicker">PanaMentorLabs</p><h1>{TITLE}</h1>'
+    body = (f'<p class="kicker">JoséWhite&#39;s PanaMentorLabs</p><h1>{TITLE}</h1>'
             '<p>Audios y mini-tests de los libros de apoyo de inglés. <b>Elige tu grado:</b></p>'
             f'<div class="grades">{"".join(cards)}</div>')
     w(os.path.join(SITE, "index.html"), page(TITLE, body, 0, foot=False))

@@ -119,7 +119,7 @@ def page(title, body, depth, extra_css="", main_cls="", foot=True, grade=None, h
         ft = f'<p class="foot">{TITLE}{" · " + GRADE_NAMES[grade] if grade else ""} — {links}</p>'
     return f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>
-{head}{css}<link rel="manifest" href="{up}manifest.json"><meta name="theme-color" content="#FAF7F0">
+{head}{css}<link rel="manifest" href="{up}manifest.json"><link rel="icon" type="image/png" href="{up}icons/favicon-48.png"><link rel="apple-touch-icon" href="{up}icons/apple-touch-icon.png"><meta name="theme-color" content="#FAF7F0">
 <script>try{{var t=localStorage.getItem('es-theme');if(t&&t!=='auto')document.documentElement.setAttribute('data-theme',t)}}catch(e){{}}</script></head>
 <body><main class="{main_cls}">{body}{ft}</main><script src="{up}theme.js"></script>
 <script>if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('{up}sw.js')</script></body></html>"""
@@ -227,9 +227,14 @@ def main():
     w(os.path.join(SITE, "sw.js"), SW_JS)
     shutil.copy(os.path.join(ROOT, "web", "tests.js"), SITE)
     shutil.copy(os.path.join(ROOT, "web", "tests.css"), SITE)
-    shutil.copy(os.path.join(ROOT, "web", "config.js"), SITE)           # dirección de la hoja de Google (envío al maestro)
+    shutil.copy(os.path.join(ROOT, "web", "config.js"), SITE)
+    os.makedirs(os.path.join(SITE, "icons"), exist_ok=True)          # íconos de la app (instalar en pantalla de inicio)
+    for ic in ("icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon-48.png"):
+        shutil.copy(os.path.join(ROOT, "web", "icons", ic), os.path.join(SITE, "icons"))           # dirección de la hoja de Google (envío al maestro)
     json.dump({"name": TITLE, "short_name": TITLE, "start_url": "/", "display": "standalone",
-               "background_color": "#FAF7F0", "theme_color": "#FAF7F0", "lang": "es"},
+               "background_color": "#FAF7F0", "theme_color": "#FAF7F0", "lang": "es",
+               "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+                         {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}]},
               open(os.path.join(SITE, "manifest.json"), "w"), ensure_ascii=False)
     json.dump({"cleanUrls": True, "headers": [{"source": "/(.*)/audio/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=604800"}]}]},
               open(os.path.join(SITE, "vercel.json"), "w"), indent=2)

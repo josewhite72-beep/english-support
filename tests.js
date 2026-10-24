@@ -382,7 +382,7 @@
     actions.append(check);
     if (SEND_URL) {   // aviso: con PIN, revisar = enviar (no se puede esconder un intento)
       const note = el("p", "small sendnote", "");
-      const upd = () => { note.innerHTML = student.get() ? "Al revisar, tu resultado <b>se envía a tu maestro</b>. Responde con calma antes de tocar el botón." : ""; };
+      const upd = () => { note.innerHTML = student.get() ? "Antes de tocar el botón \"Revisar mis respuestas\", debes saber que tu resultado será enviado al Teacher José R. White. Responde con calma antes de tocar el botón, porque <b><i>\"El exceso de confianza lleva a la ruina\".</i></b>" : ""; };
       upd(); actions.append(note); sbar.addEventListener("click", () => setTimeout(upd, 300));
     }
     app.append(result, actions);

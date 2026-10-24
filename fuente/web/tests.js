@@ -45,7 +45,8 @@
   const queue = {
     all() { try { return JSON.parse(localStorage.getItem("es-queue")) || []; } catch (e) { return []; } },
     save(q) { try { localStorage.setItem("es-queue", JSON.stringify(q)); } catch (e) {} },
-    add(item) { const q = queue.all(); q.push(item); queue.save(q); },
+    add(item) { const q = queue.all().filter(x => x.id !== item.id); q.push(item); queue.save(q); },
+    remove(id) { queue.save(queue.all().filter(x => x.id !== id)); },
     async flush() {
       if (!SEND_URL) return;
       let q = queue.all(); if (!q.length) return;
@@ -149,7 +150,7 @@
     // al llegar el progreso, redibujar solo si el estudiante sigue en la lista (no sacarlo de un mini-test abierto)
     if (SEND_URL && student.get() && progress === null) { progress = {}; loadProgress(() => { if (!/^#?\/?\d-\d\//.test(location.hash)) renderIndex(); }); }
     app.append(el("h1", null, "Mini-tests en línea"));
-    app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. " + (SEND_URL ? "Cuando termines, toca <b>Enviar a mi maestro</b>." : "Tu progreso se guarda en este dispositivo.")));
+    app.append(el("p", "lead", "Los mismos mini-tests del libro, pero <b>se corrigen solos</b> y te explican cada respuesta. " + (SEND_URL ? "Si entraste con tu PIN, al tocar <b>Revisar mis respuestas</b> tu resultado se envía solo a tu maestro (cada intento)." : "Tu progreso se guarda en este dispositivo.")));
     Object.keys(DATA).sort().forEach(tid => {
       const th = DATA[tid];
       const sec = el("section", "theme");
@@ -379,11 +380,17 @@
     const check = el("button", "btn big", "Revisar mis respuestas"); check.type = "button";
     const result = el("div", "result");
     actions.append(check);
+    if (SEND_URL) {   // aviso: con PIN, revisar = enviar (no se puede esconder un intento)
+      const note = el("p", "small sendnote", "");
+      const upd = () => { note.innerHTML = student.get() ? "Al revisar, tu resultado <b>se envía a tu maestro</b>. Responde con calma antes de tocar el botón." : ""; };
+      upd(); actions.append(note); sbar.addEventListener("click", () => setTimeout(upd, 300));
+    }
     app.append(result, actions);
     check.onclick = () => {
       if (SEND_URL && !student.get() && !student.guest()) { alert("Primero escribe tu PIN (arriba) o elige «Practicar sin registrarme»."); sbar.scrollIntoView({ behavior: "smooth" }); sbar.querySelector("input")?.focus(); return; }
       const unanswered = qn - Object.keys(saved).filter(k => /^q\d+$/.test(k) && (Array.isArray(saved[k]) ? saved[k].some(Boolean) : saved[k] !== "" && saved[k] != null)).length;
-      if (unanswered > 0 && !confirm(`Te faltan ${unanswered} pregunta(s) por responder. ¿Revisar de todos modos?`)) return;
+      const willSend = !!(SEND_URL && student.get());
+      if (unanswered > 0 && !confirm(`Te faltan ${unanswered} pregunta(s) por responder.` + (willSend ? " Si revisas ahora, se enviará así a tu maestro." : "") + " ¿Revisar de todos modos?")) return;
       details = [];
       const pts = graders.reduce((s, g) => s + g(), 0);
       const pct = pts / t.total;
@@ -399,7 +406,7 @@
       const rec = { st: student.get(), tid, sk, th, t, pts, nota: nota(pts, t.total), at: new Date(), details,
                     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) };
       const share = el("div", "share");
-      if (SEND_URL && rec.st) share.append(sendButton(rec));
+      if (SEND_URL && rec.st) share.append(sendButton(rec, true));   // envío automático de cada intento
       const img = el("button", "btn ghost", "Guardar imagen del resultado"); img.type = "button";
       img.onclick = () => saveImage(rec, img);
       share.append(img);
@@ -421,18 +428,21 @@
       : `${d.n}. ${d.ok ? "✓" : "✗"}${d.ok ? "" : ` (respondió: ${d.given || "—"}; correcta: ${d.correct})`}`).join(" | ");
 
   // ---------- enviar al maestro (Google Sheets por Apps Script) ----------
-  function sendButton(r) {
+  function sendButton(r, auto) {
     const wrap = el("span", "sendwrap");
     const b = el("button", "btn", "Enviar a mi maestro"); b.type = "button";
     const msg = el("span", "sendmsg");
+    const data = { id: r.id, pin: r.st.pin, tema: themeLabel(r.tid), tema_titulo: r.th.title, destreza: SKN[r.sk],
+      puntaje: r.pts, total: r.t.total, detalle: detailText(r) };
+    // se guarda en la cola ANTES de enviar: si el estudiante cierra la página, sale solo después (la hoja no duplica por ID)
+    if (auto) queue.add(data);
     b.onclick = async () => {
       b.disabled = true; b.textContent = "Enviando…"; msg.textContent = "";
-      const data = { id: r.id, pin: r.st.pin, tema: themeLabel(r.tid), tema_titulo: r.th.title, destreza: SKN[r.sk],
-        puntaje: r.pts, total: r.t.total, detalle: detailText(r) };
       try {
         let j;
         try { j = await api("submit", data); } catch (e1) { await new Promise(ok => setTimeout(ok, 1500)); j = await api("submit", data); }
         if (!j.ok) throw new Error(j.error || "error");
+        queue.remove(data.id);
         b.textContent = "✓ Enviado"; b.classList.add("sent");
         msg.textContent = `Tu maestro ya recibió tu resultado (intento ${j.intento}).`;
         if (progress) { const k = `${data.tema}/${data.destreza}`, p = progress[k] || { best: 0, total: data.total, veces: 0 }; p.best = Math.max(p.best, data.puntaje); p.veces++; progress[k] = p; }
@@ -441,12 +451,14 @@
           queue.add(data); b.textContent = "En espera"; b.classList.add("sent");
           msg.textContent = "No hay internet. Tu resultado se enviará solo cuando vuelva la conexión.";
         } else {
+          queue.remove(data.id);
           b.disabled = false; b.textContent = "Enviar a mi maestro";
           msg.textContent = "No se pudo enviar. Vuelve a intentarlo.";
         }
       }
     };
     wrap.append(b, msg);
+    if (auto) setTimeout(() => b.click(), 0);
     return wrap;
   }
 

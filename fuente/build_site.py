@@ -228,6 +228,7 @@ def main():
     shutil.copy(os.path.join(ROOT, "web", "tests.js"), SITE)
     shutil.copy(os.path.join(ROOT, "web", "tests.css"), SITE)
     shutil.copy(os.path.join(ROOT, "web", "config.js"), SITE)
+    shutil.copy(os.path.join(ROOT, "web", "docente.html"), SITE)     # página del docente: descarga de notas (no enlazada)
     os.makedirs(os.path.join(SITE, "icons"), exist_ok=True)          # íconos de la app (instalar en pantalla de inicio)
     for ic in ("icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon-48.png"):
         shutil.copy(os.path.join(ROOT, "web", "icons", ic), os.path.join(SITE, "icons"))           # dirección de la hoja de Google (envío al maestro)

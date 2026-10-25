@@ -10,6 +10,7 @@
  *   - login:    mandar un PIN y recibir el nombre de ESE estudiante
  *   - progress: recibir el mejor puntaje de ese estudiante en cada mini-test
  *   - submit:   guardar un resultado (el nombre y el grado salen de la lista, no del navegador)
+ *   - notas:    solo con la clave del docente: las notas finales calculadas (ver Notas.gs)
  *
  * Instalación: ver INSTRUCCIONES.md
  */
@@ -26,6 +27,7 @@ function doPost(e) {
     if (data.action === "login") return out_(login_(data));
     if (data.action === "progress") return out_(progress_(data));
     if (data.action === "submit") return out_(submit_(data));
+    if (data.action === "notas") return out_(notas_(data));          // página del docente (Notas.gs)
     return out_({ ok: false, error: "acción desconocida" });
   } catch (err) {
     return out_({ ok: false, error: String(err.message || err) });
@@ -153,6 +155,9 @@ function onOpen() {
     .addItem("Agregar estudiante (genera PIN)", "menuAddStudent")
     .addItem("Revisar la lista (PIN repetidos o vacíos)", "menuCheckList")
     .addItem("Preparar pestañas de resultados", "menuSetup")
+    .addSeparator()
+    .addItem("Definir clave del docente", "definirClaveDocente")
+    .addItem("Calcular notas finales (pestañas)", "calcularNotasFinales")
     .addToUi();
 }
 

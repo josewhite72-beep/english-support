@@ -27,3 +27,20 @@ Hazlo desde una **computadora** (en el celular, Apps Script no funciona bien).
 - **Cambiar un nombre o eliminar un estudiante:** edita o borra su fila en la pestaña *Estudiantes*. El cambio vale en 5 minutos como máximo.
 - **Revisar la lista:** menú **English Support → Revisar la lista**: avisa si hay PIN repetidos o grados mal escritos.
 - **Si cambias el script:** Implementar → Gestionar implementaciones → editar (lápiz) → Versión: *Nueva versión*. La URL no cambia.
+
+## 5. Notas finales (página del docente)
+Para la evaluación de emergencia del III Trimestre: 4 notas por estudiante (temas 5-1, 5-2, 6-1, 6-2),
+cada una = promedio de Listening, Reading y Writing (cada destreza = promedio del 1.º y el último intento).
+
+**Instalar (una vez, desde una computadora):**
+1. En Apps Script: **+ → Secuencia de comandos**, nómbrala `Notas` y pega el contenido de `Notas.gs`.
+2. Reemplaza también `Code.gs` por la versión nueva (tiene la acción `notas` y el menú).
+3. **Implementar → Gestionar implementaciones → lápiz → Versión: Nueva versión → Implementar.** La URL no cambia.
+4. Recarga la hoja y usa **English Support → Definir clave del docente**. Elige una clave que solo tú sepas.
+
+**Usar (desde cualquier dispositivo):**
+- Abre **english-support-six.vercel.app/docente**, escribe la clave y toca **Notas**.
+- Se descarga un Excel calculado en ese momento, con una hoja por grado.
+- La página no está enlazada en el sitio y sin la clave no devuelve nada.
+
+**En la hoja:** English Support → *Calcular notas finales (pestañas)* crea las pestañas "Notas Grado X".

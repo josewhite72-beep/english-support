@@ -39,7 +39,8 @@ function datosNotas_() {
     if (sh && sh.getLastRow() > 1) {
       sh.getRange(2, 1, sh.getLastRow() - 1, 11).getValues().forEach(r => {
         const pin = pin4_(r[10]);
-        const tema = String(r[2]).replace(/^'/, "").trim();
+        // la hoja guarda el tema como "5.1" (el sitio usa "5-1" en sus direcciones): se aceptan ambos
+        const tema = String(r[2]).replace(/^'/, "").trim().replace(".", "-");
         const destreza = String(r[4]).trim().toLowerCase();
         if (!pin || NF_TEMAS.indexOf(tema) < 0 || NF_DESTREZAS.indexOf(destreza) < 0) return;
         let nota = Number(r[7]);

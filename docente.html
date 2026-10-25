@@ -2,8 +2,8 @@
 <meta name="author" content="JoséWhite's PanaMentorLabs">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Docente · English Support</title>
-<link rel="stylesheet" href="style.css"><link rel="icon" type="image/png" href="icons/favicon-48.png"><meta name="theme-color" content="#FAF7F0">
+<title>Teacher · English Support</title>
+<link rel="stylesheet" href="style.css"><link rel="manifest" href="manifest.json"><link rel="icon" type="image/png" href="icons/favicon-48.png"><meta name="theme-color" content="#FAF7F0">
 <script>try{var t=localStorage.getItem('es-theme');if(t&&t!=='auto')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <style>
   .fld{display:block;margin:18px 0 6px;font-weight:600}
@@ -13,67 +13,136 @@
   .go[disabled]{opacity:.6;cursor:wait}
   .msg{min-height:1.5em;margin:6px 0 0}
   .msg.bad{color:var(--bad)} .msg.good{color:var(--good)}
-  .res{margin-top:14px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
-  .res ul{margin:6px 0 0;padding-left:20px}
+  .box{margin:14px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+  .box h2{font-size:19px;margin:0 0 4px}
+  .box p{margin:0}
+  .box ul{margin:8px 0 0;padding-left:20px}
   .rules{font-size:14px;color:var(--muted)}
   .rules li{margin:2px 0}
+  .sec{font-size:19px;margin:26px 0 10px}
+  .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .lnk{background:none;border:0;padding:0;color:var(--muted);font-size:14px;text-decoration:underline;cursor:pointer}
+  [hidden]{display:none !important}
 </style></head>
 <body><main>
-<p class="kicker">English Support · Docente</p>
-<h1>Notas del III Trimestre</h1>
-<p>Calcula las notas con los resultados de este momento y descarga un archivo de Excel con una hoja por grado.</p>
 
-<label class="fld" for="clave">Clave del docente</label>
-<input class="inp" id="clave" type="password" autocomplete="current-password">
-<label class="chk"><input type="checkbox" id="recordar" checked> Recordar en este dispositivo</label>
+<!-- ============ entrada: clave ============ -->
+<section id="vLogin">
+  <p class="kicker">English Support · Teacher</p>
+  <h1>🍎 Teacher</h1>
+  <p>Escribe tu clave para entrar al panel del docente.</p>
+  <label class="fld" for="clave">Clave del docente</label>
+  <input class="inp" id="clave" type="password" autocomplete="current-password" enterkeyhint="go">
+  <label class="chk"><input type="checkbox" id="recordar" checked> Recordar en este dispositivo</label>
+  <button class="go" id="entrar" type="button">Entrar</button>
+  <p class="msg" id="msgLogin" role="status"></p>
+  <p class="foot"><a href="index.html">← Inicio</a></p>
+</section>
 
-<button class="go" id="btn" type="button">⬇ Notas</button>
-<p class="msg" id="msg" role="status"></p>
-<div class="res" id="res" hidden></div>
+<!-- ============ panel del docente ============ -->
+<section id="vPanel" hidden>
+  <div class="top"><p class="kicker">English Support · Teacher</p><button class="lnk" id="salir" type="button">Salir</button></div>
+  <h1>Panel del docente</h1>
 
-<details><summary>Cómo se calculan</summary>
-<ul class="rules">
-  <li>4 notas por estudiante: una por tema (5-1, 5-2, 6-1, 6-2), dos por scenario.</li>
-  <li>Cada nota es el promedio de Listening, Reading y Writing de ese tema. Speaking y Mediation no cuentan.</li>
-  <li>Cada destreza vale el promedio del primer y el último intento (o el único, si hizo uno).</li>
-  <li>Si falta una destreza, se promedian solo las que hizo. Sin ninguna, la nota queda vacía.</li>
-  <li>Escala de 1.0 a 5.0, con un decimal.</li>
-</ul></details>
-<p class="foot">JoséWhite's PanaMentorLabs</p>
+  <div class="box">
+    <h2>Notas del III Trimestre</h2>
+    <p>Se calculan con los resultados de este momento. Un Excel con una hoja por grado.</p>
+    <button class="go" id="btn" type="button">⬇ Descargar notas</button>
+    <p class="msg" id="msg" role="status"></p>
+    <div id="res" hidden></div>
+    <details><summary>Cómo se calculan</summary>
+    <ul class="rules">
+      <li>4 notas por estudiante: una por tema (5-1, 5-2, 6-1, 6-2), dos por scenario.</li>
+      <li>Cada nota es el promedio de Listening, Reading y Writing de ese tema. Speaking y Mediation no cuentan.</li>
+      <li>Cada destreza vale el promedio del primer y el último intento (o el único, si hizo uno).</li>
+      <li>Si falta una destreza, se promedian solo las que hizo. Sin ninguna, la nota queda vacía.</li>
+      <li>Escala de 1.0 a 5.0, con un decimal.</li>
+    </ul></details>
+  </div>
+
+  <h2 class="sec">Contenido de los estudiantes</h2>
+  <div class="grades"><a class="gcard on" href="K/"><b>Kínder</b><span>III Trimestre</span></a><a class="gcard on" href="1/"><b>1.er grado</b><span>III Trimestre</span></a><a class="gcard on" href="2/"><b>2.º grado</b><span>III Trimestre</span></a><a class="gcard on" href="3/"><b>3.er grado</b><span>III Trimestre</span></a><a class="gcard on" href="4/"><b>4.º grado</b><span>III Trimestre</span></a><a class="gcard on" href="5/"><b>5.º grado</b><span>III Trimestre</span></a><a class="gcard on" href="6/"><b>6.º grado</b><span>III Trimestre</span></a><a class="gcard on" href="https://english7-refuerzo.vercel.app/"><b>7.º grado</b><span>I Trimestre (sitio aparte)</span></a></div>
+  <p class="foot"><a href="index.html">← Inicio</a> · JoséWhite's PanaMentorLabs</p>
+</section>
+
 </main>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function () {
   const KEY = "es-clave-docente";
+  const SKEY = "es-docente-sesion";       // abierta en esta pestaña: no se vuelve a verificar al regresar
   const $ = id => document.getElementById(id);
-  const clave = $("clave"), recordar = $("recordar"), btn = $("btn"), msg = $("msg"), res = $("res");
   const GN = g => g === "K" ? "Kínder" : g + ".º grado";
-  try { const c = localStorage.getItem(KEY); if (c) clave.value = c; } catch (e) {}
+  let claveOk = "";
 
-  function say(t, cls) { msg.textContent = t; msg.className = "msg" + (cls ? " " + cls : ""); }
+  function say(el, t, cls) { el.textContent = t; el.className = "msg" + (cls ? " " + cls : ""); }
+  function guardada() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
 
-  btn.addEventListener("click", async () => {
-    const c = clave.value.trim();
-    if (!c) { say("Escribe tu clave.", "bad"); clave.focus(); return; }
-    if (!window.ES_SEND_URL) { say("Falta la dirección de la hoja en config.js.", "bad"); return; }
-    if (!window.XLSX) { say("No se pudo cargar el generador de Excel. Revisa tu conexión y recarga la página.", "bad"); return; }
-    btn.disabled = true; res.hidden = true; say("Calculando notas…");
+  async function pedirNotas(c) {
+    if (!window.ES_SEND_URL) throw new Error("Falta la dirección de la hoja en config.js.");
+    const r = await fetch(window.ES_SEND_URL, { method: "POST", body: JSON.stringify({ action: "notas", clave: c }) });
+    return r.json();
+  }
+
+  function abrirPanel(c) {
+    claveOk = c;
+    try { sessionStorage.setItem(SKEY, "1"); } catch (e) {}
+    $("vLogin").hidden = true; $("vPanel").hidden = false;
+  }
+
+  async function entrar(c, silencioso) {
+    const m = $("msgLogin"), b = $("entrar");
+    if (!c) { say(m, "Escribe tu clave.", "bad"); $("clave").focus(); return; }
+    b.disabled = true; say(m, silencioso ? "Entrando…" : "Verificando clave…");
     try {
-      const r = await fetch(window.ES_SEND_URL, { method: "POST", body: JSON.stringify({ action: "notas", clave: c }) });
-      const d = await r.json();
-      if (!d.ok) { say(d.error || "No se pudieron obtener las notas.", "bad"); return; }
-      try { recordar.checked ? localStorage.setItem(KEY, c) : localStorage.removeItem(KEY); } catch (e) {}
-      if (!d.grados.length) { say("Todavía no hay resultados.", "bad"); return; }
+      const d = await pedirNotas(c);
+      if (!d.ok) {
+        say(m, d.error || "No se pudo verificar la clave.", "bad");
+        if (d.error === "Clave incorrecta") try { localStorage.removeItem(KEY); } catch (e) {}
+        return;
+      }
+      try { $("recordar").checked ? localStorage.setItem(KEY, c) : localStorage.removeItem(KEY); } catch (e) {}
+      say(m, "");
+      abrirPanel(c);
+    } catch (e) {
+      say(m, e.message && e.message.startsWith("Falta") ? e.message : "Sin conexión con la hoja. Intenta de nuevo.", "bad");
+    } finally { b.disabled = false; }
+  }
+
+  $("entrar").addEventListener("click", () => entrar($("clave").value.trim()));
+  $("clave").addEventListener("keydown", e => { if (e.key === "Enter") entrar($("clave").value.trim()); });
+  $("salir").addEventListener("click", () => {
+    try { localStorage.removeItem(KEY); sessionStorage.removeItem(SKEY); } catch (e) {}
+    claveOk = ""; $("clave").value = ""; $("vPanel").hidden = true; $("vLogin").hidden = false;
+  });
+
+  // al abrir: con clave recordada entra directo
+  const c0 = guardada();
+  if (c0) {
+    $("clave").value = c0;
+    let sesion = false; try { sesion = sessionStorage.getItem(SKEY) === "1"; } catch (e) {}
+    if (sesion) abrirPanel(c0); else entrar(c0, true);
+  }
+
+  // ---------------- descarga de notas ----------------
+  $("btn").addEventListener("click", async () => {
+    const btn = $("btn"), msg = $("msg"), res = $("res");
+    if (!window.XLSX) { say(msg, "No se pudo cargar el generador de Excel. Revisa tu conexión y recarga la página.", "bad"); return; }
+    btn.disabled = true; res.hidden = true; say(msg, "Calculando notas…");
+    try {
+      const d = await pedirNotas(claveOk || guardada());
+      if (!d.ok) { say(msg, d.error || "No se pudieron obtener las notas.", "bad"); return; }
+      if (!d.grados.length) { say(msg, "Todavía no hay resultados.", "bad"); return; }
       descargar(d);
-      say("Listo: archivo descargado.", "good");
+      say(msg, "Listo: archivo descargado.", "good");
       res.innerHTML = "<b>Incluye:</b><ul>" + d.grados.map(g => {
         const con = g.filas.filter(f => f.notas.some(n => n !== "")).length;
         return `<li>${GN(g.grade)}: ${g.filas.length} estudiantes (${con} con notas)</li>`;
       }).join("") + "</ul>";
       res.hidden = false;
     } catch (e) {
-      say("Sin conexión con la hoja. Intenta de nuevo.", "bad");
+      say(msg, "Sin conexión con la hoja. Intenta de nuevo.", "bad");
     } finally { btn.disabled = false; }
   });
 
@@ -96,7 +165,6 @@
       }
       ws["!cols"] = [{ wch: 34 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 2 }]
         .concat(Array(enc1.length - 6).fill({ wch: 8 }));
-      ws["!freeze"] = { xSplit: 1, ySplit: 4 };
       XLSX.utils.book_append_sheet(wb, ws, g.grade === "K" ? "Kinder" : "Grado " + g.grade);
     });
     const nombre = `English Support - Notas III Trimestre - ${ahora.getFullYear()}-${p(ahora.getMonth() + 1)}-${p(ahora.getDate())} ${p(ahora.getHours())}h${p(ahora.getMinutes())}.xlsx`;
@@ -104,4 +172,5 @@
   }
 })();
 </script>
+<script>if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js')</script>
 </body></html>

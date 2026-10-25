@@ -113,7 +113,7 @@ def page(title, body, depth, extra_css="", main_cls="", foot=True, grade=None, h
     gup = "../" * (depth - 1) if grade else ""
     ft = ""
     if foot:
-        links = f'<a href="{up}index.html">Todos los grados</a>'
+        links = f'<a href="{up}estudiante.html">Todos los grados</a>'
         if grade:
             links = f'<a href="{gup}index.html">Audios</a> · <a href="{gup}tests.html">Mini-tests en línea</a> · ' + links
         ft = f'<p class="foot">{TITLE}{" · " + GRADE_NAMES[grade] if grade else ""} — {links}</p>'
@@ -176,7 +176,7 @@ def build_grade(g, book):
               f'<title>Mini-test</title><script>location.replace("{url}")</script></head><body><a href="{url}">Abrir el mini-test</a></body></html>')
     return len(themes), sum(len(t["tracks"]) for t in themes.values()), sum(len(t["tests"]) for t in book["tests"].values())
 
-def build_index(ready):
+def grade_cards(ready):
     cards = []
     for g in GRADES:
         if g in ready:
@@ -184,10 +184,35 @@ def build_index(ready):
         else:
             cards.append(f'<div class="gcard off"><b>{GRADE_NAMES[g]}</b><span>Próximamente</span></div>')
     cards.append('<a class="gcard on" href="https://english7-refuerzo.vercel.app/"><b>7.º grado</b><span>I Trimestre (sitio aparte)</span></a>')
+    return f'<div class="grades">{"".join(cards)}</div>'
+
+PORTADA_CSS = """<style>
+.cover{display:block;width:100%;height:auto;border-radius:16px;border:1px solid var(--line);background:#fff}
+.who{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 8px}
+.who a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:96px;padding:12px;border-radius:16px;text-decoration:none;font-weight:800;font-size:22px}
+.who a span{font-size:14px;font-weight:600;opacity:.85}
+.who .st{background:var(--accent);color:var(--accent-ink)}
+.who .te{background:var(--card);color:var(--ink);border:2px solid var(--ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>"""
+
+def build_index(ready):
+    # portada: la imagen y dos entradas (Student / Teacher)
+    body = (f'<h1 class="sr">Barrigón {TITLE}</h1>'
+            '<img class="cover" src="portada.jpg" srcset="portada-768.jpg 768w, portada.jpg 1536w" sizes="(max-width:600px) 100vw, 560px" '
+            'width="1536" height="1024" alt="Barrigón English Support: Listening, Reading, Writing, Speaking, Mediation. Better English, Bigger Opportunities.">'
+            '<div class="who"><a class="st" href="estudiante.html">🎒 Student<span>Estudiante</span></a>'
+            '<a class="te" href="docente.html">🍎 Teacher<span>Docente</span></a></div>'
+            '<p class="foot">JoséWhite&#39;s PanaMentorLabs · C.E.B.G. Barrigón</p>')
+    w(os.path.join(SITE, "index.html"), page(TITLE, body, 0, foot=False, head=PORTADA_CSS))
+    # vista Student: la lista de grados
     body = (f'<p class="kicker">JoséWhite&#39;s PanaMentorLabs</p><h1>{TITLE}</h1>'
             '<p>Audios y mini-tests de los libros de apoyo de inglés. <b>Elige tu grado:</b></p>'
-            f'<div class="grades">{"".join(cards)}</div>')
-    w(os.path.join(SITE, "index.html"), page(TITLE, body, 0, foot=False))
+            + grade_cards(ready) + '<p class="foot"><a href="index.html">← Inicio</a></p>')
+    w(os.path.join(SITE, "estudiante.html"), page("Student · " + TITLE, body, 0, foot=False))
+    # vista Teacher: las mismas tarjetas de grados dentro del panel del docente
+    doc = open(os.path.join(ROOT, "web", "docente.html"), encoding="utf-8").read()
+    w(os.path.join(SITE, "docente.html"), doc.replace("<!--GRADOS-->", grade_cards(ready)))
 
 def build_404(ready):
     gl = json.dumps({g: GRADE_NAMES[g] for g in ready}, ensure_ascii=False)
@@ -216,6 +241,8 @@ def build_zip(g):
             for fn in files:
                 z.write(os.path.join(base, fn), os.path.join("english-support", rel, fn))
         # índice sin internet: solo este grado
+        idx = page(TITLE, f'<h1>{TITLE}</h1><div class="grades"><a class="gcard on" href="{g}/index.html"><b>{GRADE_NAMES[g]}</b><span>Abrir</span></a></div>', 0, foot=False)
+        z.writestr("english-support/estudiante.html", idx)    # el pie "Todos los grados" apunta aquí
         z.writestr("english-support/index.html", page(TITLE, f'<h1>{TITLE}</h1><div class="grades"><a class="gcard on" href="{g}/index.html"><b>{GRADE_NAMES[g]}</b><span>Abrir</span></a></div>', 0, foot=False))
 
 def main():
@@ -228,7 +255,8 @@ def main():
     shutil.copy(os.path.join(ROOT, "web", "tests.js"), SITE)
     shutil.copy(os.path.join(ROOT, "web", "tests.css"), SITE)
     shutil.copy(os.path.join(ROOT, "web", "config.js"), SITE)
-    shutil.copy(os.path.join(ROOT, "web", "docente.html"), SITE)     # página del docente: descarga de notas (no enlazada)
+    for im in ("portada.jpg", "portada-768.jpg"):                     # imagen de la portada
+        shutil.copy(os.path.join(ROOT, "web", im), SITE)
     os.makedirs(os.path.join(SITE, "icons"), exist_ok=True)          # íconos de la app (instalar en pantalla de inicio)
     for ic in ("icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon-48.png"):
         shutil.copy(os.path.join(ROOT, "web", "icons", ic), os.path.join(SITE, "icons"))           # dirección de la hoja de Google (envío al maestro)

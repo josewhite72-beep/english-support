@@ -8,20 +8,30 @@
 <style>
   .fld{display:block;margin:18px 0 6px;font-weight:600}
   .inp{width:100%;box-sizing:border-box;min-height:52px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font-size:17px}
+  select.inp{appearance:auto}
   .chk{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:15px;color:var(--muted)}
-  .go{display:block;width:100%;margin:22px 0 8px;min-height:60px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-size:19px;font-weight:700;cursor:pointer}
+  .go{display:block;width:100%;margin:16px 0 8px;min-height:56px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-size:18px;font-weight:700;cursor:pointer}
   .go[disabled]{opacity:.6;cursor:wait}
   .msg{min-height:1.5em;margin:6px 0 0}
   .msg.bad{color:var(--bad)} .msg.good{color:var(--good)}
   .box{margin:14px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
   .box h2{font-size:19px;margin:0 0 4px}
   .box p{margin:0}
-  .box ul{margin:8px 0 0;padding-left:20px}
   .rules{font-size:14px;color:var(--muted)}
   .rules li{margin:2px 0}
   .sec{font-size:19px;margin:26px 0 10px}
   .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
   .lnk{background:none;border:0;padding:0;color:var(--muted);font-size:14px;text-decoration:underline;cursor:pointer}
+  .stamp{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);margin:8px 0 0}
+  /* tabla en pantalla: sin colores, solo bordes */
+  .tw{overflow-x:auto;margin-top:12px}
+  table.nt{width:100%;border-collapse:collapse;font-size:14px}
+  .nt th,.nt td{border:1px solid var(--ink);padding:6px 5px;text-align:center}
+  .nt th{font-size:12px;font-weight:700;white-space:nowrap}
+  .nt td.nm{text-align:left}
+  .nt td.nm small{display:block;color:var(--muted);font-size:12px}
+  .pdf{min-width:44px;min-height:36px;border:1px solid var(--ink);border-radius:8px;background:transparent;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+  .sum{margin:10px 0 0;padding-left:20px}
   [hidden]{display:none !important}
 </style></head>
 <body><main>
@@ -46,10 +56,14 @@
 
   <div class="box">
     <h2>Notas del III Trimestre</h2>
-    <p>Se calculan con los resultados de este momento. Un Excel con una hoja por grado.</p>
-    <button class="go" id="btn" type="button">⬇ Descargar notas</button>
+    <label class="fld" for="grado">Grado</label>
+    <select class="inp" id="grado"><option value="">Todos los grados</option></select>
+    <button class="go" id="btn" type="button">⬇ Excel · todos los grados</button>
     <p class="msg" id="msg" role="status"></p>
-    <div id="res" hidden></div>
+    <div class="stamp"><span id="hora"></span><button class="lnk" id="actualizar" type="button">↻ Actualizar</button></div>
+
+    <div id="vista"></div>
+
     <details><summary>Cómo se calculan</summary>
     <ul class="rules">
       <li>4 notas por estudiante: una por tema (5-1, 5-2, 6-1, 6-2), dos por scenario.</li>
@@ -68,16 +82,23 @@
 </main>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function () {
   const KEY = "es-clave-docente";
   const SKEY = "es-docente-sesion";       // abierta en esta pestaña: no se vuelve a verificar al regresar
   const $ = id => document.getElementById(id);
   const GN = g => g === "K" ? "Kínder" : g + ".º grado";
-  let claveOk = "";
+  const GS = g => g === "K" ? "Kinder" : "Grado " + g;          // nombre sin símbolos (archivos y hojas)
+  const SKN = { L: "Listening", R: "Reading", W: "Writing" };
+  const p2 = n => String(n).padStart(2, "0");
+  const f1 = n => n === "" || n == null ? "" : Number(n).toFixed(1);
+  let claveOk = "", datos = null;
+  const titulos = {};                      // grado -> { "5-1": {scenario, title} } (de tests-data.js)
 
   function say(el, t, cls) { el.textContent = t; el.className = "msg" + (cls ? " " + cls : ""); }
   function guardada() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
   async function pedirNotas(c) {
     if (!window.ES_SEND_URL) throw new Error("Falta la dirección de la hoja en config.js.");
@@ -85,10 +106,12 @@
     return r.json();
   }
 
-  function abrirPanel(c) {
+  // ---------------- entrada ----------------
+  function abrirPanel(c, d) {
     claveOk = c;
     try { sessionStorage.setItem(SKEY, "1"); } catch (e) {}
     $("vLogin").hidden = true; $("vPanel").hidden = false;
+    if (d) mostrar(d); else cargar();
   }
 
   async function entrar(c, silencioso) {
@@ -104,7 +127,7 @@
       }
       try { $("recordar").checked ? localStorage.setItem(KEY, c) : localStorage.removeItem(KEY); } catch (e) {}
       say(m, "");
-      abrirPanel(c);
+      abrirPanel(c, d);
     } catch (e) {
       say(m, e.message && e.message.startsWith("Falta") ? e.message : "Sin conexión con la hoja. Intenta de nuevo.", "bad");
     } finally { b.disabled = false; }
@@ -114,10 +137,9 @@
   $("clave").addEventListener("keydown", e => { if (e.key === "Enter") entrar($("clave").value.trim()); });
   $("salir").addEventListener("click", () => {
     try { localStorage.removeItem(KEY); sessionStorage.removeItem(SKEY); } catch (e) {}
-    claveOk = ""; $("clave").value = ""; $("vPanel").hidden = true; $("vLogin").hidden = false;
+    claveOk = ""; datos = null; $("clave").value = ""; $("vPanel").hidden = true; $("vLogin").hidden = false;
   });
 
-  // al abrir: con clave recordada entra directo
   const c0 = guardada();
   if (c0) {
     $("clave").value = c0;
@@ -125,39 +147,79 @@
     if (sesion) abrirPanel(c0); else entrar(c0, true);
   }
 
-  // ---------------- descarga de notas ----------------
-  $("btn").addEventListener("click", async () => {
-    const btn = $("btn"), msg = $("msg"), res = $("res");
-    if (!window.XLSX) { say(msg, "No se pudo cargar el generador de Excel. Revisa tu conexión y recarga la página.", "bad"); return; }
-    btn.disabled = true; res.hidden = true; say(msg, "Calculando notas…");
+  // ---------------- datos ----------------
+  async function cargar() {
+    const msg = $("msg");
+    say(msg, "Calculando notas…");
     try {
       const d = await pedirNotas(claveOk || guardada());
-      if (!d.ok) { say(msg, d.error || "No se pudieron obtener las notas.", "bad"); return; }
-      if (!d.grados.length) { say(msg, "Todavía no hay resultados.", "bad"); return; }
-      descargar(d);
+      if (!d.ok) { say(msg, d.error || "No se pudieron obtener las notas.", "bad"); return false; }
+      mostrar(d); say(msg, "");
+      return true;
+    } catch (e) { say(msg, "Sin conexión con la hoja. Intenta de nuevo.", "bad"); return false; }
+  }
+
+  function mostrar(d) {
+    datos = d;
+    const t = new Date(d.generado);
+    $("hora").textContent = `Notas calculadas a las ${p2(t.getHours())}:${p2(t.getMinutes())}`;
+    const sel = $("grado"), antes = sel.value;
+    sel.innerHTML = '<option value="">Todos los grados</option>' +
+      d.grados.map(g => `<option value="${g.grade}">${GN(g.grade)}</option>`).join("");
+    if (d.grados.some(g => g.grade === antes)) sel.value = antes;
+    pintar();
+  }
+
+  $("actualizar").addEventListener("click", cargar);
+  $("grado").addEventListener("change", pintar);
+
+  function conNotas(f) { return f.notas.some(n => n !== ""); }
+
+  function pintar() {
+    const g = $("grado").value, v = $("vista");
+    $("btn").textContent = g ? `⬇ Excel · ${GN(g)}` : "⬇ Excel · todos los grados";
+    if (!datos) { v.innerHTML = ""; return; }
+    if (!g) {
+      v.innerHTML = '<ul class="sum">' + datos.grados.map(x =>
+        `<li>${GN(x.grade)}: ${x.filas.length} estudiantes (${x.filas.filter(conNotas).length} con notas)</li>`).join("") +
+        '</ul><p class="rules" style="margin-top:8px">Elige un grado para ver las notas y descargar el PDF de cada estudiante.</p>';
+      return;
+    }
+    const grado = datos.grados.find(x => x.grade === g);
+    v.innerHTML = '<div class="tw"><table class="nt"><thead><tr><th>Estudiante</th><th>N1<br>5-1</th><th>N2<br>5-2</th><th>N3<br>6-1</th><th>N4<br>6-2</th><th>PDF</th></tr></thead><tbody>' +
+      grado.filas.map((f, i) => `<tr><td class="nm">${esc(f.nombre)}${conNotas(f) ? "" : "<small>Sin resultados</small>"}</td>` +
+        f.notas.map(n => `<td>${f1(n) || "–"}</td>`).join("") +
+        `<td><button class="pdf" type="button" data-i="${i}" aria-label="PDF de ${esc(f.nombre)}">📄</button></td></tr>`).join("") +
+      "</tbody></table></div>";
+    v.querySelectorAll(".pdf").forEach(b => b.addEventListener("click", () => boleta(grado, grado.filas[+b.dataset.i])));
+  }
+
+  // ---------------- Excel (todos o un grado) ----------------
+  $("btn").addEventListener("click", async () => {
+    const btn = $("btn"), msg = $("msg");
+    if (!window.XLSX) { say(msg, "No se pudo cargar el generador de Excel. Revisa tu conexión y recarga la página.", "bad"); return; }
+    btn.disabled = true;
+    try {
+      if (!(await cargar())) return;                       // siempre con los resultados de este momento
+      const g = $("grado").value;
+      const grados = g ? datos.grados.filter(x => x.grade === g) : datos.grados;
+      if (!grados.length) { say(msg, "Todavía no hay resultados.", "bad"); return; }
+      excel(grados, g);
       say(msg, "Listo: archivo descargado.", "good");
-      res.innerHTML = "<b>Incluye:</b><ul>" + d.grados.map(g => {
-        const con = g.filas.filter(f => f.notas.some(n => n !== "")).length;
-        return `<li>${GN(g.grade)}: ${g.filas.length} estudiantes (${con} con notas)</li>`;
-      }).join("") + "</ul>";
-      res.hidden = false;
-    } catch (e) {
-      say(msg, "Sin conexión con la hoja. Intenta de nuevo.", "bad");
     } finally { btn.disabled = false; }
   });
 
-  function descargar(d) {
-    const ahora = new Date(d.generado);
-    const p = n => String(n).padStart(2, "0");
-    const fecha = `${p(ahora.getDate())}/${p(ahora.getMonth() + 1)}/${ahora.getFullYear()} ${p(ahora.getHours())}:${p(ahora.getMinutes())}`;
+  function excel(grados, g) {
+    const d = datos, ahora = new Date(d.generado);
+    const fecha = `${p2(ahora.getDate())}/${p2(ahora.getMonth() + 1)}/${ahora.getFullYear()} ${p2(ahora.getHours())}:${p2(ahora.getMinutes())}`;
     const wb = XLSX.utils.book_new();
-    d.grados.forEach(g => {
+    grados.forEach(gr => {
       const enc1 = ["Estudiante", "Nota 1", "Nota 2", "Nota 3", "Nota 4", ""];
       const enc2 = ["", "Scenario 5 · Tema 5-1", "Scenario 5 · Tema 5-2", "Scenario 6 · Tema 6-1", "Scenario 6 · Tema 6-2", ""];
       d.temas.forEach(t => d.destrezas.forEach(s => { enc1.push(t + " " + s); enc2.push(""); }));
       enc2[6] = "Detalle por destreza (promedio 1.º y último intento)";
-      const filas = g.filas.map(f => [f.nombre].concat(f.notas, [""], f.detalle));
-      const aoa = [[`English Support · Notas III Trimestre · ${GN(g.grade)} · ${fecha}`], [], enc1, enc2].concat(filas);
+      const filas = gr.filas.map(f => [f.nombre].concat(f.notas, [""], f.detalle));
+      const aoa = [[`English Support · Notas III Trimestre · ${GN(gr.grade)} · ${fecha}`], [], enc1, enc2].concat(filas);
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       for (let r = 4; r < aoa.length; r++) for (let c = 1; c < enc1.length; c++) {
         const cell = ws[XLSX.utils.encode_cell({ r, c })];
@@ -165,10 +227,120 @@
       }
       ws["!cols"] = [{ wch: 34 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 2 }]
         .concat(Array(enc1.length - 6).fill({ wch: 8 }));
-      XLSX.utils.book_append_sheet(wb, ws, g.grade === "K" ? "Kinder" : "Grado " + g.grade);
+      XLSX.utils.book_append_sheet(wb, ws, GS(gr.grade));
     });
-    const nombre = `English Support - Notas III Trimestre - ${ahora.getFullYear()}-${p(ahora.getMonth() + 1)}-${p(ahora.getDate())} ${p(ahora.getHours())}h${p(ahora.getMinutes())}.xlsx`;
-    XLSX.writeFile(wb, nombre);
+    const sello = `${ahora.getFullYear()}-${p2(ahora.getMonth() + 1)}-${p2(ahora.getDate())} ${p2(ahora.getHours())}h${p2(ahora.getMinutes())}`;
+    XLSX.writeFile(wb, `English Support - Notas III Trimestre - ${g ? GS(g) + " - " : ""}${sello}.xlsx`);
+  }
+
+  // ---------------- PDF individual (boleta) ----------------
+  async function temasDe(g) {                       // nombres de scenario y tema, de los mini-tests del grado
+    if (titulos[g]) return titulos[g];
+    try {
+      const s = await (await fetch(`${g}/tests-data.js`)).text();
+      const m = s.match(/window\.TESTS\s*=\s*(\{[\s\S]*\})\s*;?\s*$/);
+      const T = JSON.parse(m[1]), o = {};
+      Object.keys(T).forEach(k => { o[k] = { scenario: T[k].scenario || "", title: T[k].title || "" }; });
+      titulos[g] = o;
+    } catch (e) { titulos[g] = {}; }
+    return titulos[g];
+  }
+
+  async function boleta(grado, f) {
+    const msg = $("msg");
+    if (!window.jspdf) { say(msg, "No se pudo cargar el generador de PDF. Revisa tu conexión y recarga la página.", "bad"); return; }
+    const T = await temasDe(grado.grade);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "letter" });
+    const W = 215.9, M = 18, CW = W - 2 * M;
+    const ahora = new Date(datos.generado);
+    const fecha = `${p2(ahora.getDate())}/${p2(ahora.getMonth() + 1)}/${ahora.getFullYear()} ${p2(ahora.getHours())}:${p2(ahora.getMinutes())}`;
+    const limpio = s => String(s).replace(/[–—]/g, "-").replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+    doc.setDrawColor(0); doc.setTextColor(0); doc.setLineWidth(0.3);
+
+    let y = 20;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    doc.text("C.E.B.G. Barrigón · English Support", M, y);
+    doc.text(fecha, W - M, y, { align: "right" });
+    y += 9;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(17);
+    doc.text("Informe de notas · III Trimestre", M, y);
+    y += 9;
+    doc.setFontSize(11);
+    doc.text("Estudiante:", M, y); doc.setFont("helvetica", "normal"); doc.text(limpio(f.nombre), M + 24, y);
+    y += 6.5;
+    doc.setFont("helvetica", "bold"); doc.text("Grado:", M, y); doc.setFont("helvetica", "normal"); doc.text(GN(grado.grade), M + 24, y);
+    y += 8;
+
+    // tabla: dibuja filas con bordes negros y fondo blanco; el texto largo se ajusta
+    function tabla(cols, filas, opt) {
+      const pad = 2, lh = 4.6;
+      filas.forEach((fila, ri) => {
+        const bold = ri === 0 || (opt.boldCol != null);
+        const lineas = fila.map((c, ci) => {
+          doc.setFont("helvetica", ri === 0 || ci === opt.boldCol ? "bold" : "normal");
+          doc.setFontSize(ri === 0 ? 9.5 : 10);
+          return doc.splitTextToSize(limpio(c), cols[ci].w - 2 * pad);
+        });
+        const h = Math.max(...lineas.map(l => l.length)) * lh + 2 * pad;
+        let x = M;
+        fila.forEach((c, ci) => {
+          doc.rect(x, y, cols[ci].w, h);
+          doc.setFont("helvetica", ri === 0 || ci === opt.boldCol ? "bold" : "normal");
+          doc.setFontSize(ri === 0 ? 9.5 : 10);
+          const al = cols[ci].a || "left";
+          const tx = al === "center" ? x + cols[ci].w / 2 : x + pad;
+          doc.text(lineas[ci], tx, y + pad + 3.4, { align: al, lineHeightFactor: 1.3 });
+          x += cols[ci].w;
+        });
+        y += h;
+      });
+    }
+
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("Notas", M, y); y += 3;
+    const nombresNota = ["Nota 1", "Nota 2", "Nota 3", "Nota 4"];
+    tabla([{ w: 20 }, { w: 64 }, { w: CW - 20 - 64 - 26 }, { w: 26, a: "center" }],
+      [["", "Scenario", "Tema", "Calificación"]].concat(datos.temas.map((t, i) => {
+        const x = T[t] || {};
+        return [nombresNota[i], x.scenario || ("Scenario " + t.charAt(0)), `${t}${x.title ? " · " + x.title : ""}`,
+                f.notas[i] === "" ? "Sin realizar" : f1(f.notas[i])];
+      })), { boldCol: 3 });
+
+    y += 9;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("Detalle por destreza", M, y); y += 3;
+    const dw = (CW - 30) / 4;
+    tabla([{ w: 30 }, { w: dw, a: "center" }, { w: dw, a: "center" }, { w: dw, a: "center" }, { w: dw, a: "center" }],
+      [["Tema"].concat(datos.destrezas.map(s => SKN[s] || s), ["Nota del tema"])].concat(datos.temas.map((t, i) => {
+        const det = f.detalle.slice(i * 3, i * 3 + 3).map(n => n === "" ? "-" : f1(n));
+        return [t].concat(det, [f.notas[i] === "" ? "-" : f1(f.notas[i])]);
+      })), {});
+
+    y += 8;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+    const nota = "Evaluación a distancia con los mini-tests de la plataforma English Support. Cada nota es el promedio de " +
+      "Listening, Reading y Writing del tema; cada destreza vale el promedio del primer y el último intento. " +
+      "Si una destreza no se realizó, se promedian solo las realizadas. Speaking y Mediation no se evaluaron en este periodo.";
+    doc.text(doc.splitTextToSize(nota, CW), M, y, { lineHeightFactor: 1.35 });
+
+    y += 32;
+    doc.line(M, y, M + 70, y); doc.line(W - M - 70, y, W - M, y);
+    doc.setFontSize(9.5);
+    doc.text("Firma del docente", M + 35, y + 5, { align: "center" });
+    doc.text("Firma del acudiente", W - M - 35, y + 5, { align: "center" });
+
+    doc.setFontSize(8); doc.setTextColor(90);
+    doc.text("JoséWhite's PanaMentorLabs · english-support-six.vercel.app", W / 2, 268, { align: "center" });
+
+    // descarga con nombre propio (el guardado de jsPDF a veces pierde el nombre en Android)
+    const url = URL.createObjectURL(doc.output("blob"));
+    const a = document.createElement("a");
+    const archivo = String(f.nombre).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w .-]/g, "");  // sin tildes: nombre seguro en cualquier teléfono
+    a.href = url; a.download = `Notas III Trimestre - ${archivo} - ${GS(grado.grade)}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    say(msg, `PDF de ${f.nombre} descargado.`, "good");
   }
 })();
 </script>
